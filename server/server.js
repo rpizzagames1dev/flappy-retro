@@ -131,7 +131,7 @@ function startGame(room){
 
   const TICK_HZ = 30;
   const DT = 1 / TICK_HZ;
-  const STATE_HZ = 8;
+  const STATE_HZ = 12;
 
   if(room.tickTimer) clearInterval(room.tickTimer);
   if(room.stateTimer) clearInterval(room.stateTimer);

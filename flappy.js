@@ -483,6 +483,8 @@ function jumpSolo(level){
 
 // ===== MULTIPLAYER =====
 const mpQueue = [];
+const mpSmooth = new Map(); // id -> {x,y,vy}
+function lerp(a,b,t){ return a + (b-a)*t; }
 const mp = {
   ws: null,
   connected: false,
@@ -641,11 +643,18 @@ function mpConnect(){
     }
 
     if(msg.t === "lobby"){
-      mp.snap = msg.snap;
-      applySnapToSelectors(mp.snap);
-      renderMpBoard(mp.snap);
-      return;
+  mp.snap = msg.snap;
+
+  for(const p of (mp.snap.players || [])){
+    if(!mpSmooth.has(p.id)){
+      mpSmooth.set(p.id, { x: p.x, y: p.y, vy: p.vy });
     }
+  }
+
+  applySnapToSelectors(mp.snap);
+  renderMpBoard(mp.snap);
+  return;
+}
 
     if(msg.t === "start"){
       mp.snap = msg.snap;
@@ -660,10 +669,18 @@ function mpConnect(){
     }
 
     if(msg.t === "state"){
-      mp.snap = msg.snap;
-      renderMpBoard(mp.snap);
-      return;
+  mp.snap = msg.snap;
+
+  // init smoothing targets
+  for(const p of (mp.snap.players || [])){
+    if(!mpSmooth.has(p.id)){
+      mpSmooth.set(p.id, { x: p.x, y: p.y, vy: p.vy });
     }
+  }
+
+  renderMpBoard(mp.snap);
+  return;
+}
 
     if(msg.t === "gameOver"){
       mp.snap = msg.snap;
@@ -884,9 +901,22 @@ function step(now){
     for(const p of (snap.pipes || [])) drawPipe(p, pipeSkin);
 
     for(const pl of (snap.players || [])){
-      drawBirdAt(pl.x, pl.y, pl.vy, pl.birdSkin || "bird_classic");
-      drawNameTag(pl.x, pl.y, pl.name || "PLAYER");
-    }
+  let s = mpSmooth.get(pl.id);
+
+  if(!s){
+    s = { x: pl.x, y: pl.y, vy: pl.vy };
+    mpSmooth.set(pl.id, s);
+  }
+
+  const SMOOTH = 0.18;
+
+  s.x = lerp(s.x, pl.x, SMOOTH);
+  s.y = lerp(s.y, pl.y, SMOOTH);
+  s.vy = lerp(s.vy, pl.vy, SMOOTH);
+
+  drawBirdAt(s.x, s.y, s.vy, pl.birdSkin || "bird_classic");
+  drawNameTag(s.x, s.y, pl.name || "PLAYER");
+}
 
     drawFloor();
 
