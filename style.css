@@ -1,10 +1,9 @@
-/* ====== RESET ====== */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
+
 :root{
   --bg0:#070716;
   --bg1:#0a0a1c;
-
   --ink: rgba(255,255,255,0.92);
   --muted: rgba(255,255,255,0.72);
 
@@ -18,7 +17,6 @@ html, body { height: 100%; }
   --sun4:#a48bff;
 
   --panel: rgba(8,8,20,0.40);
-  --panel2: rgba(0,0,0,0.20);
 }
 
 body{
@@ -28,7 +26,7 @@ body{
   overflow-x: hidden;
 }
 
-/* ====== BACKDROP ====== */
+/* BACKDROP */
 .bg{ position: fixed; inset: 0; z-index: -1; }
 .bg__glow{
   position:absolute; inset:-20%;
@@ -48,18 +46,12 @@ body{
 }
 .bg__scan{
   position:absolute; inset:0;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(0,0,0,0.00) 0px,
-      rgba(0,0,0,0.00) 6px,
-      rgba(0,0,0,0.22) 7px
-    );
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.00) 0px, rgba(0,0,0,0.00) 6px, rgba(0,0,0,0.22) 7px);
   opacity: 0.20;
   pointer-events: none;
 }
 
-/* ====== LAYOUT ====== */
+/* LAYOUT */
 .app{
   width: min(1180px, 100%);
   margin: 0 auto;
@@ -75,23 +67,19 @@ body{
   gap: 12px;
   align-items: start;
 }
-
 @media (max-width: 1050px){
   .grid{ grid-template-columns: 1fr; }
 }
 
-/* ====== PIXEL FRAME ====== */
+/* PIXEL FRAME */
 .pixel-frame{
   position: relative;
   border-radius: var(--r);
   background: var(--panel);
   border: 1px solid var(--stroke);
-  box-shadow:
-    0 18px 50px rgba(0,0,0,0.55),
-    0 0 0 var(--px) rgba(0,0,0,0.40) inset;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55), 0 0 0 var(--px) rgba(0,0,0,0.40) inset;
   overflow: hidden;
 }
-
 .pixel-frame::before{
   content:"";
   position:absolute; inset:0;
@@ -113,7 +101,7 @@ body{
   opacity: 0.80;
 }
 
-/* ====== TOPBAR ====== */
+/* TOPBAR */
 .topbar{
   padding: 10px 12px;
   display:flex;
@@ -121,7 +109,6 @@ body{
   align-items:center;
   gap: 10px;
 }
-
 .brand{ display:flex; align-items:center; gap: 10px; }
 .logo-px{
   width: 20px; height: 20px;
@@ -136,17 +123,8 @@ body{
   border-radius: 4px;
   background: linear-gradient(135deg, rgba(0,0,0,0.25), rgba(255,255,255,0.06));
 }
-.brand__title{
-  letter-spacing: 4px;
-  font-size: 13px;
-  line-height: 1.1;
-}
-.brand__subtitle{
-  margin-top: 2px;
-  font-size: 10px;
-  letter-spacing: 2px;
-  opacity: 0.75;
-}
+.brand__title{ letter-spacing: 4px; font-size: 13px; line-height: 1.1; }
+.brand__subtitle{ margin-top: 2px; font-size: 10px; letter-spacing: 2px; opacity: 0.75; }
 
 .topbar__chips{ display:flex; gap: 8px; align-items:center; }
 .chip{
@@ -163,32 +141,14 @@ body{
 .chip--mini{ min-width: 0; padding: 6px 8px; border-radius: 12px; }
 .chip--mini b{ font-size: 12px; }
 
-/* ====== PANELS ====== */
+/* PANELS */
 .panel{ padding: 12px; }
-.panel__title{
-  font-size: 11px;
-  letter-spacing: 3px;
-  margin-bottom: 10px;
-}
+.panel__title{ font-size: 11px; letter-spacing: 3px; margin-bottom: 10px; }
 .panel__block{ margin-bottom: 12px; }
-.mini{
-  font-size: 10px;
-  letter-spacing: 3px;
-  margin-bottom: 8px;
-}
+.mini{ font-size: 10px; letter-spacing: 3px; margin-bottom: 8px; }
 .muted{ color: var(--muted); }
 .tiny{ font-size: 11px; line-height: 1.5; }
-.panel p{ font-size: 12px; line-height: 1.6; }
 
-code{
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.20);
-}
-
-/* ====== KEYS ====== */
 .kline{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin: 8px 0; }
 .sep{ opacity:0.55; }
 .desc{ opacity:0.82; font-size:12px; margin-left: 6px; }
@@ -201,9 +161,25 @@ code{
   font-size: 11px;
   letter-spacing: 2px;
 }
-.key--soft{ background: rgba(255,255,255,0.06); }
 
-/* ====== CENTER GAME CARD ====== */
+/* STATUS DOT */
+.statusLine{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.18);
+}
+.dot{ width:10px; height:10px; border-radius:999px; box-shadow: 0 0 0 2px rgba(0,0,0,0.35) inset; }
+.dot--green{
+  background: rgba(60, 255, 140, 0.95);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.35) inset, 0 0 16px rgba(60, 255, 140, 0.30);
+}
+.statusText{ font-size: 11px; letter-spacing: 3px; opacity: .92; }
+
+/* GAME */
 .game{ padding: 10px; }
 .game__header{
   display:flex;
@@ -212,11 +188,7 @@ code{
   gap: 10px;
   padding: 6px 4px 10px 4px;
 }
-.badge{
-  font-size: 10px;
-  letter-spacing: 3px;
-  opacity: 0.85;
-}
+.badge{ font-size: 10px; letter-spacing: 3px; opacity: 0.85; }
 .hudline{ display:flex; gap: 8px; }
 
 .viewport{
@@ -225,9 +197,7 @@ code{
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(0,0,0,0.18);
   overflow:hidden;
-  box-shadow:
-    0 0 0 2px rgba(0,0,0,0.38) inset,
-    0 0 26px rgba(255,106,149,0.08);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.38) inset, 0 0 26px rgba(255,106,149,0.08);
 }
 
 #gameCanvas{
@@ -238,18 +208,11 @@ code{
   background: rgba(0,0,0,0.22);
 }
 
-/* scanlines on game only */
 .viewport::after{
   content:"";
   position:absolute; inset:0;
   pointer-events:none;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(0,0,0,0.00) 0px,
-      rgba(0,0,0,0.00) 5px,
-      rgba(0,0,0,0.22) 6px
-    );
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.00) 0px, rgba(0,0,0,0.00) 5px, rgba(0,0,0,0.22) 6px);
   opacity:0.14;
 }
 
@@ -261,7 +224,7 @@ code{
   text-align:center;
 }
 
-/* ====== OVERLAYS ====== */
+/* OVERLAYS */
 .overlay{
   position:absolute;
   inset: 0;
@@ -279,8 +242,8 @@ code{
   text-align:center;
   background: rgba(0,0,0,0.25);
 }
-.overlay__card--wide{ width: min(520px, 94%); text-align:left; }
-.overlay__card--shop{ width: min(650px, 96%); }
+.overlay__card--wide{ width: min(540px, 94%); text-align:left; }
+.overlay__card--shop{ width: min(680px, 96%); }
 
 .overlay__title{
   font-size: 14px;
@@ -289,11 +252,7 @@ code{
   text-align:center;
 }
 
-.divider{
-  height: 1px;
-  margin: 10px 0;
-  background: rgba(255,255,255,0.10);
-}
+.divider{ height: 1px; margin: 10px 0; background: rgba(255,255,255,0.10); }
 
 .menuGrid{
   display:grid;
@@ -337,7 +296,7 @@ code{
   background: rgba(255,207,122,0.08);
 }
 
-/* ====== SCORE BOX ====== */
+/* SCOREBOX */
 .scorebox{
   margin: 10px 0 12px 0;
   border-radius: 14px;
@@ -355,14 +314,13 @@ code{
 }
 .scorebox b{ font-size: 16px; letter-spacing: 1px; }
 
-/* ====== MP BOX ====== */
+/* MP BOX */
 .mpBox{
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(0,0,0,0.18);
   padding: 10px;
 }
-
 .mpHead{
   display:flex;
   align-items:center;
@@ -370,11 +328,7 @@ code{
   gap: 10px;
   margin-bottom: 8px;
 }
-.mpTitle{
-  font-size: 11px;
-  letter-spacing: 3px;
-  opacity: .9;
-}
+.mpTitle{ font-size: 11px; letter-spacing: 3px; opacity: .9; }
 .mpStatus{
   font-size: 10px;
   letter-spacing: 2px;
@@ -398,10 +352,9 @@ code{
   opacity: .8;
   white-space:nowrap;
 }
-
 .mpInp, .mpSel{
   flex: 1;
-  max-width: 260px;
+  max-width: 280px;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -418,14 +371,9 @@ code{
   gap: 8px;
   margin-top: 10px;
 }
+.mpHint{ margin-top: 8px; font-size: 11px; line-height: 1.4; }
 
-.mpHint{
-  margin-top: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-/* ====== Pixel buttons (secondary) ====== */
+/* MP mini buttons */
 .pxbtn{
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(0,0,0,0.22);
@@ -447,7 +395,7 @@ code{
   border-color: rgba(255,255,255,0.10);
 }
 
-/* ====== SHOP ====== */
+/* SHOP */
 .shopTop{
   display:flex;
   align-items:center;
@@ -456,13 +404,9 @@ code{
   margin-bottom: 8px;
 }
 .shopActions{ display:flex; gap: 8px; align-items:center; }
-.shopHelp{
-  font-size: 11px;
-  line-height: 1.4;
-  margin-bottom: 10px;
-}
+.shopHelp{ font-size: 11px; line-height: 1.4; margin-bottom: 10px; }
 
-/* grid of square tiles */
+/* square tiles grid */
 .shopList{
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -484,29 +428,60 @@ code{
   box-shadow: 0 0 0 2px rgba(0,0,0,0.30) inset;
 }
 .shopRow{ display:flex; justify-content:space-between; gap: 10px; align-items:flex-start; }
-.shopName{
-  font-size: 11px;
-  letter-spacing: 2px;
-  opacity: 0.92;
-}
-.shopMeta{
-  font-size: 10px;
-  letter-spacing: 1px;
-  opacity: 0.80;
-}
-.shopBtns{
-  display:flex;
-  gap: 8px;
-  justify-content:flex-end;
-}
-.shopBtns .pxbtn{
-  width: auto;
-  padding: 8px 10px;
-  font-size: 10px;
-  letter-spacing: 2px;
+.shopLeft{ display:flex; gap:10px; align-items:center; }
+
+.shopName{ font-size: 11px; letter-spacing: 2px; opacity: 0.92; }
+.shopMeta{ font-size: 10px; letter-spacing: 1px; opacity: 0.80; }
+
+.shopBtns{ display:flex; gap: 8px; justify-content:flex-end; }
+.shopBtns .pxbtn{ width: auto; padding: 8px 10px; font-size: 10px; letter-spacing: 2px; }
+
+/* product icons */
+.shopIcon{
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.15);
+  padding: 4px;
 }
 
-/* ====== MP BOARD (over canvas) ====== */
+/* pipe icon made in CSS */
+.pipeIcon{
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.15);
+  position: relative;
+  overflow: hidden;
+}
+.pipeIcon::before{
+  content:"";
+  position:absolute; left: 9px; top: 6px;
+  width: 18px; height: 24px;
+  border-radius: 6px;
+  border: 2px solid rgba(0,0,0,0.55);
+  background: #33c948;
+  box-shadow: inset -6px 0 0 rgba(0,0,0,0.18);
+}
+.pipeIcon::after{
+  content:"";
+  position:absolute; left: 6px; top: 4px;
+  width: 24px; height: 8px;
+  border-radius: 6px;
+  border: 2px solid rgba(0,0,0,0.55);
+  background: #39da51;
+}
+
+/* variants */
+.pipeIcon.pipe_gold::before{ background:#f6d34b; box-shadow: inset -6px 0 0 rgba(0,0,0,0.18); }
+.pipeIcon.pipe_gold::after{ background:#ffe27a; }
+.pipeIcon.pipe_night::before{ background:#2bd26a; }
+.pipeIcon.pipe_night::after{ background:#35ff80; }
+
+/* MP BOARD */
 .mpBoard{
   position:absolute;
   left:10px; top:10px;
@@ -535,57 +510,3 @@ code{
 .mpLine .who{ opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mpLine .pts{ opacity:.85; }
 .mpLine.dead .who{ opacity:.55; text-decoration: line-through; }
-
-/* ====== TINY CSS “PIXEL ART” DECORATIONS ====== */
-.pixel-art{
-  margin-top: 10px;
-  display:flex;
-  gap: 10px;
-}
-.sprite{
-  width: 32px; height: 32px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.35) inset;
-  position:relative;
-  overflow:hidden;
-}
-.sprite::before{
-  content:"";
-  position:absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(0,0,0,0.15));
-}
-.sprite.s1{ background: linear-gradient(135deg, rgba(255,207,122,0.22), rgba(0,0,0,0.18)); }
-.sprite.s2{ background: linear-gradient(135deg, rgba(255,106,149,0.20), rgba(0,0,0,0.18)); }
-.sprite.s3{ background: linear-gradient(135deg, rgba(124,246,255,0.16), rgba(0,0,0,0.18)); }
-.statusLine{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
-}
-
-.dot{
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.35) inset;
-}
-
-.dot--green{
-  background: rgba(60, 255, 140, 0.95);
-  box-shadow:
-    0 0 0 2px rgba(0,0,0,0.35) inset,
-    0 0 16px rgba(60, 255, 140, 0.30);
-}
-
-.statusText{
-  font-size: 11px;
-  letter-spacing: 3px;
-  opacity: 0.92;
-}

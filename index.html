@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Flappy Retro — Pixel UI</title>
+  <title>Flappy Retro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <!-- BACKDROP (CSS only) -->
   <div class="bg">
     <div class="bg__grid"></div>
     <div class="bg__scan"></div>
@@ -16,13 +15,12 @@
   </div>
 
   <main class="app">
-    <!-- TOP BAR -->
     <header class="topbar pixel-frame">
       <div class="brand">
         <span class="logo-px" aria-hidden="true"></span>
         <div class="brand__text">
           <div class="brand__title">FLAPPY RETRO</div>
-          <div class="brand__subtitle">pixel ui • solo / online</div>
+          <div class="brand__subtitle">solo / online • pixel ui</div>
         </div>
       </div>
 
@@ -42,12 +40,9 @@
       </div>
     </header>
 
-    <!-- BODY GRID -->
     <section class="grid">
-      <!-- LEFT COLUMN -->
       <aside class="panel pixel-frame">
         <h2 class="panel__title">CONTROLS</h2>
-
         <div class="panel__block">
           <div class="kline">
             <span class="key">SPACE</span>
@@ -55,15 +50,8 @@
             <span class="key">CLICK</span>
             <span class="sep">/</span>
             <span class="key">TAP</span>
+            <span class="desc">jump</span>
           </div>
-          <div class="kline muted">
-            <span class="key key--soft">MENU</span>
-            <span class="desc">buttons on screen</span>
-          </div>
-        </div>
-
-        <div class="panel__block">
-          <h3 class="mini">TIPS</h3>
         </div>
 
         <div class="pixel-art">
@@ -73,7 +61,6 @@
         </div>
       </aside>
 
-      <!-- CENTER GAME -->
       <section class="game pixel-frame">
         <div class="game__header">
           <div class="badge">ARCADE WINDOW</div>
@@ -92,13 +79,12 @@
         <div class="viewport">
           <canvas id="gameCanvas" width="420" height="720"></canvas>
 
-          <!-- MP BOARD (top-left over canvas) -->
           <div id="mpBoard" class="mpBoard hidden">
             <div class="mpBoard__title">LOBBY / SCORE</div>
             <div id="mpBoardList" class="mpBoard__list"></div>
           </div>
 
-          <!-- MENU OVERLAY -->
+          <!-- MENU -->
           <div id="menuOverlay" class="overlay">
             <div class="overlay__card pixel-frame overlay__card--wide">
               <div class="overlay__title">MAIN MENU</div>
@@ -143,12 +129,7 @@
 
                 <div class="mpRow">
                   <label class="mpLabel" for="mpSkinSel">YOUR SKIN</label>
-                  <select id="mpSkinSel" class="mpSel">
-                    <option value="bird_classic">BIRD: CLASSIC</option>
-                    <option value="bird_red">BIRD: RED</option>
-                    <option value="bird_cyan">BIRD: CYAN</option>
-                    <option value="bird_gold">BIRD: GOLD</option>
-                  </select>
+                  <select id="mpSkinSel" class="mpSel"></select>
                 </div>
 
                 <div class="mpRow">
@@ -160,15 +141,13 @@
                   </select>
                 </div>
 
-                <div class="mpHint muted">
-                </div>
               </div>
 
               <div id="assetWarn" class="warn muted hidden"></div>
             </div>
           </div>
 
-          <!-- SHOP OVERLAY -->
+          <!-- SHOP -->
           <div id="shopOverlay" class="overlay hidden">
             <div class="overlay__card pixel-frame overlay__card--wide overlay__card--shop">
               <div class="overlay__title">SHOP</div>
@@ -184,14 +163,12 @@
                 </div>
               </div>
 
-              <div class="shopHelp muted">
-              </div>
 
               <div id="shopList" class="shopList"></div>
             </div>
           </div>
 
-          <!-- GAME OVER OVERLAY -->
+          <!-- GAME OVER -->
           <div id="overOverlay" class="overlay hidden">
             <div class="overlay__card pixel-frame">
               <div class="overlay__title">GAME OVER</div>
@@ -207,22 +184,21 @@
           </div>
         </div>
 
-        <div class="game__footer muted">
-          Pixel UI • responsive • portrait canvas
-        </div>
+        <div class="game__footer muted">Pixel UI • portrait canvas • no gifs</div>
       </section>
 
-      <!-- RIGHT COLUMN -->
       <aside class="panel pixel-frame">
         <h2 class="panel__title">STATUS</h2>
+
+        <div class="panel__block">
           <div class="statusLine">
             <span class="dot dot--green" aria-hidden="true"></span>
             <span class="statusText">RUNNING PERFECTLY</span>
-        </div>
-        <div class="panel__block">
+          </div>
         </div>
 
         <div class="panel__block">
+          <h3 class="mini">NOTES</h3>
         </div>
       </aside>
     </section>
