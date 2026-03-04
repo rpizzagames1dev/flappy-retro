@@ -1,160 +1,229 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Flappy Retro — Online MP</title>
+  <title>Flappy Retro — Pixel UI</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <div class="pxbg" aria-hidden="true">
-    <div class="pxbg__sky"></div>
-    <div class="pxbg__dither"></div>
-    <div class="pxbg__stars"></div>
-    <div class="pxbg__horizon"></div>
+  <!-- BACKDROP (CSS only) -->
+  <div class="bg">
+    <div class="bg__grid"></div>
+    <div class="bg__scan"></div>
+    <div class="bg__glow"></div>
   </div>
 
-  <main class="wrap">
-    <header class="topbar">
-      <div class="topbar__left">
-        <span class="pxicon" aria-hidden="true"></span>
-        <div>
-          <div class="title">FLAPPY RETRO</div>
-          <div class="subtitle">online multiplayer • rooms</div>
+  <main class="app">
+    <!-- TOP BAR -->
+    <header class="topbar pixel-frame">
+      <div class="brand">
+        <span class="logo-px" aria-hidden="true"></span>
+        <div class="brand__text">
+          <div class="brand__title">FLAPPY RETRO</div>
+          <div class="brand__subtitle">pixel ui • solo / online</div>
         </div>
       </div>
 
-      <div class="topbar__right">
-        <div class="pxpill">
-          <span>COINS</span>
-          <b id="coinsTop">0</b>
-        </div>
-        <div class="pxpill">
-          <span>BEST</span>
+      <div class="topbar__chips">
+        <div class="chip">
+          <span class="chip__label">BEST</span>
           <b id="bestTop">0</b>
         </div>
-        <div class="pxpill">
-          <span>FPS</span>
+        <div class="chip">
+          <span class="chip__label">COINS</span>
+          <b id="coinsTop">0</b>
+        </div>
+        <div class="chip">
+          <span class="chip__label">FPS</span>
           <b id="fpsTop">—</b>
         </div>
       </div>
     </header>
 
-    <section class="layout">
-      <aside class="panel">
-        <div class="panel__cap">
-          <span class="caplabel">CONTROLS</span>
-          <span class="capdots" aria-hidden="true"></span>
-        </div>
+    <!-- BODY GRID -->
+    <section class="grid">
+      <!-- LEFT COLUMN -->
+      <aside class="panel pixel-frame">
+        <h2 class="panel__title">CONTROLS</h2>
 
-        <div class="panel__box">
-          <div class="row">
-            <span class="keycap">SPACE</span>
+        <div class="panel__block">
+          <div class="kline">
+            <span class="key">SPACE</span>
             <span class="sep">/</span>
-            <span class="keycap">TAP</span>
+            <span class="key">CLICK</span>
             <span class="sep">/</span>
-            <span class="keycap">CLICK</span>
+            <span class="key">TAP</span>
+            <span class="desc">jump</span>
           </div>
-          <div class="hint">jump</div>
+          <div class="kline muted">
+            <span class="key key--soft">MENU</span>
+            <span class="desc">buttons on screen</span>
+          </div>
         </div>
 
-        <div class="panel__box">
-          <div class="boxtitle">ONLINE</div>
-          <p class="muted">Create room → give code friend → both READY → start.</p>
+        <div class="panel__block">
+          <h3 class="mini">TIPS</h3>
+          <p class="muted">
+            W multiplayer: klikaj <b>READY</b>. Host wybiera <b>LEVEL</b> i <b>PIPE THEME</b>.
+          </p>
+        </div>
+
+        <div class="pixel-art">
+          <div class="sprite s1"></div>
+          <div class="sprite s2"></div>
+          <div class="sprite s3"></div>
         </div>
       </aside>
 
-      <section class="screen">
-        <div class="screen__cap">
-          <div class="caplabel">GAME SCREEN</div>
-          <div class="hud">
-            <div class="pxpill pxpill--mini">
-              <span>SCORE</span>
+      <!-- CENTER GAME -->
+      <section class="game pixel-frame">
+        <div class="game__header">
+          <div class="badge">ARCADE WINDOW</div>
+          <div class="hudline">
+            <div class="chip chip--mini">
+              <span class="chip__label">SCORE</span>
               <b id="scoreHud">0</b>
             </div>
-            <div class="pxpill pxpill--mini">
-              <span>BEST</span>
+            <div class="chip chip--mini">
+              <span class="chip__label">BEST</span>
               <b id="bestHud">0</b>
             </div>
           </div>
         </div>
 
-        <div class="crt">
-          <div class="crt__frame">
-            <canvas id="gameCanvas" width="420" height="720"></canvas>
+        <div class="viewport">
+          <canvas id="gameCanvas" width="420" height="720"></canvas>
 
-            <!-- MENU -->
-            <div id="menuOverlay" class="overlay">
-              <div class="overlay__card overlay__card--menu">
-                <div class="overlay__title">FLAPPY RETRO</div>
-                <div class="overlay__sub muted">Solo / Online</div>
-
-                <div class="menuBtns">
-                  <button id="playSoloBtn" class="pxbtn">PLAY SOLO</button>
-                  <button id="shopBtn" class="pxbtn pxbtn--alt2">SHOP</button>
-                </div>
-
-                <div class="mpbox">
-                  <input id="mpName" class="pxinput" placeholder="NAME" maxlength="12" />
-                  <div class="mpRow">
-                    <button id="createRoomBtn" class="pxbtn pxbtn--alt">CREATE</button>
-                    <input id="roomCodeInp" class="pxinput" placeholder="CODE" maxlength="4" />
-                    <button id="joinRoomBtn" class="pxbtn pxbtn--alt2">JOIN</button>
-                  </div>
-                  <button id="readyBtn" class="pxbtn">READY</button>
-                  <div id="mpStatus" class="muted mpStatus">—</div>
-                </div>
-
-                <div id="assetWarn" class="warn muted hidden"></div>
-              </div>
-            </div>
-
-            <!-- SHOP -->
-            <div id="shopOverlay" class="overlay hidden">
-              <div class="overlay__card overlay__card--panel">
-                <div class="overlay__title">SHOP</div>
-                <div class="overlay__sub muted">
-                  Coins: <b id="coinsShop">0</b>
-                </div>
-
-                <div id="shopList" class="shopList"></div>
-
-                <div class="menuBtns menuBtns--two">
-                  <button id="backFromShopBtn" class="pxbtn pxbtn--alt">BACK</button>
-                  <button id="resetShopBtn" class="pxbtn pxbtn--alt2">RESET</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- GAME OVER -->
-            <div id="overOverlay" class="overlay hidden">
-              <div class="overlay__card">
-                <div class="overlay__title">GAME OVER</div>
-                <div class="scorebox">
-                  <div class="scorebox__row"><span>SCORE</span><b id="scoreOver">0</b></div>
-                  <div class="scorebox__row"><span>BEST</span><b id="bestOver">0</b></div>
-                </div>
-                <button id="restartBtn" class="pxbtn pxbtn--alt">RESTART</button>
-                <button id="menuBtn" class="pxbtn pxbtn--alt2">MENU</button>
-              </div>
-            </div>
-
+          <!-- MP BOARD (top-left over canvas) -->
+          <div id="mpBoard" class="mpBoard hidden">
+            <div class="mpBoard__title">LOBBY / SCORE</div>
+            <div id="mpBoardList" class="mpBoard__list"></div>
           </div>
 
-          <div class="crt__foot muted">rooms • websocket • server authoritative</div>
+          <!-- MENU OVERLAY -->
+          <div id="menuOverlay" class="overlay">
+            <div class="overlay__card pixel-frame overlay__card--wide">
+              <div class="overlay__title">MAIN MENU</div>
+
+              <div class="menuGrid">
+                <button id="playSoloBtn" class="btn">PLAY SOLO</button>
+                <button id="shopBtn" class="btn btn--alt">SHOP</button>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="mpBox">
+                <div class="mpHead">
+                  <div class="mpTitle">ONLINE MULTIPLAYER</div>
+                  <div id="mpStatus" class="mpStatus">—</div>
+                </div>
+
+                <div class="mpRow">
+                  <label class="mpLabel" for="mpName">NAME</label>
+                  <input id="mpName" class="mpInp" maxlength="14" placeholder="PLAYER" />
+                </div>
+
+                <div class="mpRow">
+                  <label class="mpLabel" for="roomCodeInp">ROOM</label>
+                  <input id="roomCodeInp" class="mpInp mpInp--code" maxlength="4" placeholder="ABCD" />
+                </div>
+
+                <div class="mpBtns">
+                  <button id="createRoomBtn" class="pxbtn">CREATE</button>
+                  <button id="joinRoomBtn" class="pxbtn">JOIN</button>
+                  <button id="readyBtn" class="pxbtn pxbtn--alt">READY</button>
+                </div>
+
+                <div class="mpRow">
+                  <label class="mpLabel" for="levelSel">LEVEL</label>
+                  <select id="levelSel" class="mpSel">
+                    <option value="classic">CLASSIC</option>
+                    <option value="hard">HARD</option>
+                    <option value="zen">ZEN</option>
+                  </select>
+                </div>
+
+                <div class="mpRow">
+                  <label class="mpLabel" for="mpSkinSel">YOUR SKIN</label>
+                  <select id="mpSkinSel" class="mpSel">
+                    <option value="bird_classic">BIRD: CLASSIC</option>
+                    <option value="bird_red">BIRD: RED</option>
+                    <option value="bird_cyan">BIRD: CYAN</option>
+                    <option value="bird_gold">BIRD: GOLD</option>
+                  </select>
+                </div>
+
+                <div class="mpRow">
+                  <label class="mpLabel" for="mpPipeSel">PIPE THEME (HOST)</label>
+                  <select id="mpPipeSel" class="mpSel">
+                    <option value="pipe_classic">PIPES: CLASSIC</option>
+                    <option value="pipe_gold">PIPES: GOLD</option>
+                    <option value="pipe_night">PIPES: NIGHT</option>
+                  </select>
+                </div>
+
+                <div class="mpHint muted">
+                </div>
+              </div>
+
+              <div id="assetWarn" class="warn muted hidden"></div>
+            </div>
+          </div>
+
+          <!-- SHOP OVERLAY -->
+          <div id="shopOverlay" class="overlay hidden">
+            <div class="overlay__card pixel-frame overlay__card--wide overlay__card--shop">
+              <div class="overlay__title">SHOP</div>
+
+              <div class="shopTop">
+                <div class="chip chip--mini">
+                  <span class="chip__label">COINS</span>
+                  <b id="coinsShop">0</b>
+                </div>
+                <div class="shopActions">
+                  <button id="resetShopBtn" class="pxbtn pxbtn--ghost">RESET</button>
+                  <button id="backFromShopBtn" class="pxbtn pxbtn--alt">BACK</button>
+                </div>
+              </div>
+
+              <div class="shopHelp muted">
+              </div>
+
+              <div id="shopList" class="shopList"></div>
+            </div>
+          </div>
+
+          <!-- GAME OVER OVERLAY -->
+          <div id="overOverlay" class="overlay hidden">
+            <div class="overlay__card pixel-frame">
+              <div class="overlay__title">GAME OVER</div>
+              <div class="scorebox">
+                <div class="row"><span>SCORE</span><b id="scoreOver">0</b></div>
+                <div class="row"><span>BEST</span><b id="bestOver">0</b></div>
+              </div>
+              <div class="menuGrid">
+                <button id="restartBtn" class="btn">RESTART</button>
+                <button id="menuBtn" class="btn btn--alt">MENU</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game__footer muted">
+          Pixel UI • responsive • portrait canvas
         </div>
       </section>
 
-      <aside class="panel">
-        <div class="panel__cap">
-          <span class="caplabel">STATUS</span>
-          <span class="capdots" aria-hidden="true"></span>
+      <!-- RIGHT COLUMN -->
+      <aside class="panel pixel-frame">
+        <h2 class="panel__title">STATUS</h2>
+
+        <div class="panel__block">
         </div>
 
-        <div class="panel__box">
-          <div class="boxtitle">TIP</div>
-          <p class="muted">If online is "DISCONNECTED" → check MP_URL in flappy.js.</p>
+        <div class="panel__block">
         </div>
       </aside>
     </section>
