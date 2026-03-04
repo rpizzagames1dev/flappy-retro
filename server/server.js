@@ -1,12 +1,14 @@
-const http = require("http");
-const WebSocket = require("ws");
+import http from "http";
+import WebSocket, { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 8080;
+
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Flappy Retro MP server OK");
 });
-const wss = new WebSocket.Server({ server });
+
+const wss = new WebSocketServer({ server });
 
 const MAX_PLAYERS = 8;
 
@@ -21,6 +23,9 @@ const LEVELS = {
   hard:    { gravity:25.0, jumpVy:-435.0, maxFall:950.0, gap:168, speed:235.0, spawnEvery:1.20 },
   zen:     { gravity:20.0, jumpVy:-405.0, maxFall:850.0, gap:210, speed:195.0, spawnEvery:1.50 },
 };
+
+const ALLOWED_BIRDS = new Set(["bird_classic","bird_red","bird_cyan","bird_gold"]);
+const ALLOWED_PIPES = new Set(["pipe_classic","pipe_gold","pipe_night"]);
 
 function code4(){
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -83,7 +88,7 @@ function snapshot(room){
       alive: p.alive,
       ready: p.ready,
       score: p.score,
-      birdSkin: p.birdSkin,
+      birdSkin: p.birdSkin || "bird_classic",
     }))
   };
 }
@@ -126,7 +131,7 @@ function startGame(room){
 
   const TICK_HZ = 30;
   const DT = 1 / TICK_HZ;
-  const STATE_HZ = 8; // <<< mniej lagów
+  const STATE_HZ = 8;
 
   if(room.tickTimer) clearInterval(room.tickTimer);
   if(room.stateTimer) clearInterval(room.stateTimer);
@@ -141,9 +146,7 @@ function startGame(room){
       spawnPipe(room, lv);
     }
 
-    for(const pipe of room.pipes){
-      pipe.x -= lv.speed * DT;
-    }
+    for(const pipe of room.pipes) pipe.x -= lv.speed * DT;
     room.pipes = room.pipes.filter(p => p.x + PIPE_W > -20);
 
     for(const pl of room.players.values()){
@@ -270,8 +273,11 @@ wss.on("connection", (ws)=>{
       return;
     }
 
+    // ✅ kompatybilny setSkin: obsłuży birdSkin (nowe) i skin/id (starsze)
     if(msg.t === "setSkin"){
-      me.birdSkin = String(msg.birdSkin || me.birdSkin);
+      const incoming = msg.birdSkin ?? msg.skin ?? msg.id;
+      const skin = String(incoming || me.birdSkin || "bird_classic");
+      me.birdSkin = ALLOWED_BIRDS.has(skin) ? skin : "bird_classic";
       broadcast(room, { t:"lobby", snap: snapshot(room) });
       return;
     }
@@ -287,7 +293,8 @@ wss.on("connection", (ws)=>{
 
     if(msg.t === "setPipeSkin"){
       if(room.hostId !== clientId) return;
-      room.pipeSkin = String(msg.pipeSkin || room.pipeSkin);
+      const ps = String(msg.pipeSkin || room.pipeSkin);
+      room.pipeSkin = ALLOWED_PIPES.has(ps) ? ps : "pipe_classic";
       broadcast(room, { t:"lobby", snap: snapshot(room) });
       return;
     }

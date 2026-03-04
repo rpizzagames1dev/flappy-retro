@@ -482,6 +482,7 @@ function jumpSolo(level){
 }
 
 // ===== MULTIPLAYER =====
+const mpQueue = [];
 const mp = {
   ws: null,
   connected: false,
@@ -495,6 +496,8 @@ const mp = {
 function mpSend(obj){
   if(mp.ws && mp.ws.readyState === WebSocket.OPEN){
     mp.ws.send(JSON.stringify(obj));
+  }else{
+    mpQueue.push(obj);
   }
 }
 
@@ -577,9 +580,13 @@ function mpConnect(){
   mp.ws = new WebSocket(MP_URL);
 
   mp.ws.onopen = () => {
-    mp.connected = true;
-    mpSetStatus("CONNECTED");
-  };
+  mp.connected = true;
+  mpSetStatus("CONNECTED");
+
+  while(mpQueue.length){
+    mp.ws.send(JSON.stringify(mpQueue.shift()));
+  }
+};
 
   mp.ws.onclose = () => {
     // keep UI safe
