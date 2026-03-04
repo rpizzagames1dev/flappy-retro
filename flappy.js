@@ -1,10 +1,10 @@
-// flappy.js — Solo + Online Multiplayer (rooms) + Shop (pipe/bird skins)
+z// flappy.js — Solo + Online Multiplayer (rooms) + Shop (pipe/bird skins)
 // IMPORTANT: set MP_URL below.
 
 // === MULTIPLAYER SERVER URL ===
 // Local:  ws://localhost:8080
 // Online: wss://YOUR-DOMAIN
-const MP_URL = "wss://twoja-gra.onrender.com";
+const MP_URL = "wss://flappy-retro.onrender.com";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
