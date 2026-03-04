@@ -1,33 +1,30 @@
-// flappy.js — Solo + Online Multiplayer (rooms) + Shop (simple skins)
-// IMPORTANT: set MP_URL below.
-
-// === MULTIPLAYER SERVER URL ===
-// Online (Render):
+// flappy.js — Solo + Online MP + Shop + Levels + Names + Leaderboard
+// Server (Render):
 const MP_URL = "wss://flappy-retro.onrender.com";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// overlays
+const W = canvas.width;
+const H = canvas.height;
+const FLOOR_H = 70;
+
+// ===== DOM =====
 const menuOverlay = document.getElementById("menuOverlay");
 const shopOverlay = document.getElementById("shopOverlay");
 const overOverlay = document.getElementById("overOverlay");
 
-// menu buttons
 const playSoloBtn = document.getElementById("playSoloBtn");
 const shopBtn = document.getElementById("shopBtn");
 
-// shop buttons
 const backFromShopBtn = document.getElementById("backFromShopBtn");
 const resetShopBtn = document.getElementById("resetShopBtn");
 
-// over buttons
 const restartBtn = document.getElementById("restartBtn");
 const menuBtn = document.getElementById("menuBtn");
 
 const assetWarn = document.getElementById("assetWarn");
 
-// HUD
 const scoreHud = document.getElementById("scoreHud");
 const bestHud = document.getElementById("bestHud");
 const bestTop = document.getElementById("bestTop");
@@ -46,31 +43,53 @@ const roomCodeInp = document.getElementById("roomCodeInp");
 const readyBtn = document.getElementById("readyBtn");
 const mpStatus = document.getElementById("mpStatus");
 
-// canvas constants
-const W = canvas.width;
-const H = canvas.height;
-const FLOOR_H = 70;
+const levelSel = document.getElementById("levelSel");
+const mpSkinSel = document.getElementById("mpSkinSel");
+const mpPipeSel = document.getElementById("mpPipeSel");
 
-// solo physics
-const GRAVITY = 22.0;
-const JUMP_VY  = -420.0;
-const MAX_FALL = 900.0;
+const mpBoard = document.getElementById("mpBoard");
+const mpBoardList = document.getElementById("mpBoardList");
 
-const PIPE_W = 80;
-const PIPE_GAP = 190;
-const PIPE_SPEED = 210.0;
-const SPAWN_EVERY = 1.35;
-
+// ===== CONSTS =====
 const BIRD_DRAW = 54;
-const BIRD_PAD  = 12;
+const BIRD_PAD = 12;
+const PIPE_W = 80;
 
-// assets
+// ===== LEVELS (solo params) =====
+const LEVELS = {
+  classic: { id:"classic", name:"CLASSIC", gravity:22.0, jumpVy:-420.0, maxFall:900.0, gap:190, speed:210.0, spawnEvery:1.35 },
+  hard:    { id:"hard",    name:"HARD",    gravity:25.0, jumpVy:-435.0, maxFall:950.0, gap:168, speed:235.0, spawnEvery:1.20 },
+  zen:     { id:"zen",     name:"ZEN",     gravity:20.0, jumpVy:-405.0, maxFall:850.0, gap:210, speed:195.0, spawnEvery:1.50 },
+};
+
+function getSelectedLevelId(){
+  const v = (levelSel?.value || "classic").toLowerCase();
+  return LEVELS[v] ? v : "classic";
+}
+function getLevel(){
+  return LEVELS[getSelectedLevelId()];
+}
+
+// ===== ASSETS =====
 const bgImg = new Image();
 bgImg.src = "assets/bg_wide.png";
-const birdImg = new Image();
-birdImg.src = "assets/bird.png";
 
-// local storage
+// bird images (skin -> img)
+function makeImg(src){
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+
+// Classic uses assets/bird.png (already)
+const birdImgs = {
+  bird_classic: makeImg("assets/bird.png"),
+  bird_red:     makeImg("assets/bird_red.png"),
+  bird_cyan:    makeImg("assets/bird_cyan.png"),
+  bird_gold:    makeImg("assets/bird_gold.png"),
+};
+
+// ===== STORAGE =====
 const LS = {
   BEST: "flappyRetroBest",
   COINS: "flappyRetroCoins",
@@ -83,9 +102,8 @@ function loadInt(key, def=0){
   const n = v ? parseInt(v, 10) : def;
   return Number.isFinite(n) ? n : def;
 }
-function saveInt(key, n){
-  localStorage.setItem(key, String(n|0));
-}
+function saveInt(key, n){ localStorage.setItem(key, String(n|0)); }
+
 function loadJSON(key, def){
   try{
     const v = localStorage.getItem(key);
@@ -94,11 +112,9 @@ function loadJSON(key, def){
     return def;
   }
 }
-function saveJSON(key, obj){
-  localStorage.setItem(key, JSON.stringify(obj));
-}
+function saveJSON(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
 
-// shop
+// ===== SHOP DATA =====
 let coins = loadInt(LS.COINS, 0);
 let best = loadInt(LS.BEST, 0);
 
@@ -108,29 +124,13 @@ const SHOP_ITEMS = [
   { id:"pipe_night", type:"pipe", name:"PIPES: NIGHT", desc:"Darker pipes", cost:80 },
 
   { id:"bird_classic", type:"bird", name:"BIRD: CLASSIC", desc:"Default bird", cost:0 },
-  { id:"bird_red", type:"bird", name:"BIRD: RED", desc:"Red tint + outline", cost:60 },
-  { id:"bird_cyan", type:"bird", name:"BIRD: CYAN", desc:"Cyan tint + outline", cost:60 },
-  { id:"bird_gold", type:"bird", name:"BIRD: GOLD", desc:"Gold tint", cost:140 },
+  { id:"bird_red", type:"bird", name:"BIRD: RED", desc:"assets/bird_red.png", cost:60 },
+  { id:"bird_cyan", type:"bird", name:"BIRD: CYAN", desc:"assets/bird_cyan.png", cost:60 },
+  { id:"bird_gold", type:"bird", name:"BIRD: GOLD", desc:"assets/bird_gold.png", cost:140 },
 ];
 
 let owned = loadJSON(LS.OWNED, { pipe_classic:true, bird_classic:true });
 let equipped = loadJSON(LS.EQUIP, { pipe:"pipe_classic", bird:"bird_classic" });
-
-// game runtime (solo)
-let running = false;
-let paused = false;
-let gameOver = false;
-
-let score = 0;
-let bird = null;
-let pipes = [];
-let spawnT = 0;
-let bgX = 0;
-
-// fps
-let last = performance.now();
-let fpsAcc = 0;
-let fpsFrames = 0;
 
 // ===== UI helpers =====
 function syncUI(){
@@ -142,6 +142,7 @@ function syncUI(){
   coinsTop.textContent = String(coins);
   coinsShop.textContent = String(coins);
 }
+
 function showOnly(which){
   // which: "menu" | "shop" | "over" | "none"
   menuOverlay.classList.toggle("hidden", which !== "menu");
@@ -149,7 +150,15 @@ function showOnly(which){
   overOverlay.classList.toggle("hidden", which !== "over");
 }
 
-// ===== SHOP =====
+function mpSetStatus(s){
+  if(mpStatus) mpStatus.textContent = s;
+}
+
+function isHostSnap(snap){
+  return snap && mp.clientId && snap.hostId === mp.clientId;
+}
+
+// ===== SHOP UI =====
 function rebuildShop(){
   shopList.innerHTML = "";
 
@@ -159,11 +168,6 @@ function rebuildShop(){
   ];
 
   for(const g of groups){
-    const head = document.createElement("div");
-    head.className = "shopItem";
-    head.innerHTML = `<div class="shopName">${g.label}</div><div class="shopMeta muted">buy + equip</div>`;
-    shopList.appendChild(head);
-
     for(const item of SHOP_ITEMS.filter(x => x.type === g.type)){
       const isOwned = !!owned[item.id];
       const isEquipped = (g.type === "pipe") ? (equipped.pipe === item.id) : (equipped.bird === item.id);
@@ -216,6 +220,12 @@ function rebuildShop(){
           if(g.type === "pipe") equipped.pipe = item.id;
           else equipped.bird = item.id;
           saveJSON(LS.EQUIP, equipped);
+
+          // if MP, allow changing skin live:
+          if(g.type === "bird"){
+            if(mpSkinSel) mpSkinSel.value = equipped.bird;
+            if(mp.connected && mp.inRoom) mpSend({ t:"setSkin", birdSkin: equipped.bird });
+          }
           rebuildShop();
         };
         btns.appendChild(equipBtn);
@@ -223,23 +233,19 @@ function rebuildShop(){
 
       bottom.appendChild(btns);
       el.appendChild(bottom);
+
       shopList.appendChild(el);
     }
   }
 }
 
-// ===== VISUALS =====
-function getPipeStyle(){
+// ===== VISUALS (pipes) =====
+function getPipeStyle(pipeSkin){
+  const id = pipeSkin || equipped.pipe || "pipe_classic";
   let fill = "#33c948", shade = "#2aa83c", cap = "#39da51", edge = "#0b1b0e";
-  if(equipped.pipe === "pipe_gold"){ fill="#f6d34b"; shade="#caa62f"; cap="#ffe27a"; edge="#1a1406"; }
-  if(equipped.pipe === "pipe_night"){ fill="#2bd26a"; shade="#1f8f49"; cap="#35ff80"; edge="#07140b"; }
+  if(id === "pipe_gold"){ fill="#f6d34b"; shade="#caa62f"; cap="#ffe27a"; edge="#1a1406"; }
+  if(id === "pipe_night"){ fill="#2bd26a"; shade="#1f8f49"; cap="#35ff80"; edge="#07140b"; }
   return { fill, shade, cap, edge };
-}
-function getBirdSkin(){
-  if(equipped.bird === "bird_red")  return { tint:"rgba(255,90,90,0.30)",  outline:"rgba(0,0,0,0.65)" };
-  if(equipped.bird === "bird_cyan") return { tint:"rgba(90,255,240,0.28)", outline:"rgba(0,0,0,0.65)" };
-  if(equipped.bird === "bird_gold") return { tint:"rgba(255,210,80,0.32)", outline:"rgba(0,0,0,0.65)" };
-  return { tint:null, outline:"rgba(0,0,0,0.55)" };
 }
 
 const PIPE_LINE = 4;
@@ -277,8 +283,8 @@ function drawPipeCap(x, y, w, h, st){
   ctx.fillRect(cx + PIPE_LINE, y + PIPE_LINE, cw - PIPE_LINE*2, 3);
 }
 
-function drawPipe(pipe){
-  const st = getPipeStyle();
+function drawPipe(pipe, pipeSkin){
+  const st = getPipeStyle(pipeSkin);
   const x = Math.round(pipe.x);
 
   const topH = Math.round(pipe.topH);
@@ -308,11 +314,12 @@ function drawFloor(){
   ctx.fillRect(0, H - FLOOR_H, W, 3);
 }
 
-function drawBackground(dt, frozen=false){
+let bgX = 0;
+function drawBackground(dt, speed, frozen=false){
   if(frozen) dt = 0;
 
   if(bgImg.complete && bgImg.naturalWidth > 0){
-    bgX -= PIPE_SPEED * dt * 0.35;
+    bgX -= speed * dt * 0.35;
 
     const iw = bgImg.naturalWidth;
     const ih = bgImg.naturalHeight;
@@ -337,7 +344,16 @@ function rectsOverlap(a,b){
   return !(b.x > a.x + a.w || b.x + b.w < a.x || b.y > a.y + a.h || b.y + b.h < a.y);
 }
 
-// ===== SOLO GAME =====
+// ===== SOLO GAME STATE =====
+let running = false;
+let paused = false;
+let gameOver = false;
+
+let score = 0;
+let bird = null;
+let pipes = [];
+let spawnT = 0;
+
 function resetSolo(){
   score = 0;
   gameOver = false;
@@ -367,7 +383,9 @@ function endSolo(){
   showOnly("over");
 }
 
-function spawnPipe(){
+function spawnPipeSolo(level){
+  const PIPE_GAP = level.gap;
+
   const topMargin = 80;
   const bottomMargin = FLOOR_H + 80;
   const usable = H - topMargin - bottomMargin - PIPE_GAP;
@@ -376,56 +394,89 @@ function spawnPipe(){
   pipes.push({ x: W + 10, topH, bottomY, passed:false });
 }
 
-function birdHitbox(){
+function birdHitboxSolo(){
   const pad = BIRD_PAD;
   return { x: bird.x + pad, y: bird.y + pad, w: BIRD_DRAW - pad*2, h: BIRD_DRAW - pad*2 };
 }
-function pipeCollision(pipe){
-  const hb = birdHitbox();
+
+function pipeCollisionSolo(pipe){
+  const hb = birdHitboxSolo();
   const topRect = { x: pipe.x, y: 0, w: PIPE_W, h: pipe.topH };
   const botRect = { x: pipe.x, y: pipe.bottomY, w: PIPE_W, h: (H - FLOOR_H) - pipe.bottomY };
   return rectsOverlap(hb, topRect) || rectsOverlap(hb, botRect);
 }
-function jumpSolo(){
+
+function jumpSolo(level){
   if(!running || paused || gameOver) return;
-  bird.vy = JUMP_VY;
+  bird.vy = level.jumpVy;
 }
 
-function drawBirdSolo(){
-  const skin = getBirdSkin();
-  const cx = bird.x + BIRD_DRAW/2;
-  const cy = bird.y + BIRD_DRAW/2;
-  const tilt = Math.max(-0.45, Math.min(0.65, bird.vy / 650));
+function drawBirdAt(x, y, vy, birdSkin, isMe=false){
+  const img = birdImgs[birdSkin] || birdImgs.bird_classic;
+  const cx = x + BIRD_DRAW/2;
+  const cy = y + BIRD_DRAW/2;
+  const tilt = Math.max(-0.45, Math.min(0.65, (vy || 0) / 650));
 
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(tilt);
 
+  // outline for visibility
   const o = 2;
-  if(birdImg.complete && birdImg.naturalWidth > 0){
-    ctx.drawImage(birdImg, -BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2 + o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 - o, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 + o, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+  ctx.globalAlpha = 1;
+
+  if(img && img.complete && img.naturalWidth > 0){
+    ctx.drawImage(img, -BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(img, -BIRD_DRAW/2 + o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(img, -BIRD_DRAW/2, -BIRD_DRAW/2 - o, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(img, -BIRD_DRAW/2, -BIRD_DRAW/2 + o, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(img, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
   }else{
-    ctx.fillStyle = skin.outline;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(-BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
     ctx.fillStyle = "#ffd08a";
     ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
   }
 
-  if(skin.tint){
-    ctx.globalCompositeOperation = "source-atop";
-    ctx.fillStyle = skin.tint;
-    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.globalCompositeOperation = "source-over";
+  // marker "YOU"
+  if(isMe){
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(124,246,255,0.85)";
+    ctx.strokeRect(-BIRD_DRAW/2 - 4, -BIRD_DRAW/2 - 4, BIRD_DRAW + 8, BIRD_DRAW + 8);
   }
 
   ctx.restore();
 }
 
-// ===== ONLINE MULTIPLAYER =====
+function drawNameTag(x, y, name, isMe=false){
+  const label = (name || "PLAYER").slice(0, 14);
+  ctx.save();
+  ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+
+  const tx = x + BIRD_DRAW/2;
+  const ty = y - 6;
+
+  const w = ctx.measureText(label).width + 14;
+  const h = 18;
+  const rx = tx - w/2;
+  const ry = ty - h;
+
+  ctx.fillStyle = isMe ? "rgba(124,246,255,0.22)" : "rgba(0,0,0,0.45)";
+  ctx.fillRect(rx, ry, w, h);
+
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(rx, ry, w, h);
+
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.fillText(label, tx, ty - 3);
+
+  ctx.restore();
+}
+
+// ===== MULTIPLAYER =====
 const mp = {
   ws: null,
   connected: false,
@@ -436,28 +487,60 @@ const mp = {
   snap: null,
 };
 
-function mpSetStatus(s){
-  if(mpStatus) mpStatus.textContent = s;
-}
-
 function mpSend(obj){
   if(mp.ws && mp.ws.readyState === WebSocket.OPEN){
     mp.ws.send(JSON.stringify(obj));
   }
 }
 
+function setMpButtonsDisabled(v){
+  if(createRoomBtn) createRoomBtn.disabled = v;
+  if(joinRoomBtn) joinRoomBtn.disabled = v;
+  if(readyBtn) readyBtn.disabled = v;
+  if(levelSel) levelSel.disabled = v;
+  if(mpSkinSel) mpSkinSel.disabled = v;
+  if(mpPipeSel) mpPipeSel.disabled = v;
+}
+
 function mpConnect(){
   if(mp.ws && (mp.ws.readyState === WebSocket.OPEN || mp.ws.readyState === WebSocket.CONNECTING)) return;
 
-  mp.ws = new WebSocket(MP_URL);
-  mpSetStatus("CONNECTING...");
+  setMpButtonsDisabled(true);
+  mpSetStatus("CONNECTING... (server waking up)");
 
-  mp.ws.onopen = () => {
+  let opened = false;
+  mp.ws = new WebSocket(MP_URL);
+
+  const hardTimeout = setTimeout(() => {
+    if(opened) return;
+    mpSetStatus("STILL WAKING... retrying once");
+    try { mp.ws.close(); } catch {}
+    mp.ws = new WebSocket(MP_URL);
+    mp.ws.onopen = onOpen;
+    mp.ws.onmessage = onMsg;
+    mp.ws.onclose = onClose;
+  }, 7000);
+
+  const onOpen = () => {
+    opened = true;
+    clearTimeout(hardTimeout);
     mp.connected = true;
     mpSetStatus("CONNECTED");
+    setMpButtonsDisabled(false);
   };
 
-  mp.ws.onmessage = (ev) => {
+  const onClose = () => {
+    clearTimeout(hardTimeout);
+    mp.connected = false;
+    mp.inRoom = false;
+    mp.active = false;
+    mpSetStatus("DISCONNECTED");
+    setMpButtonsDisabled(false);
+    mp.snap = null;
+    renderMpBoard(null);
+  };
+
+  const onMsg = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
 
@@ -470,7 +553,8 @@ function mpConnect(){
       mp.inRoom = true;
       mp.code = msg.code;
       mp.snap = msg.snap;
-      mpSetStatus(`ROOM ${mp.code} — share code, press READY`);
+      mpSetStatus(`ROOM ${mp.code} — share code, READY`);
+      renderMpBoard(mp.snap);
       return;
     }
 
@@ -478,14 +562,17 @@ function mpConnect(){
       mp.inRoom = true;
       mp.code = msg.code;
       mp.snap = msg.snap;
-      mpSetStatus(`JOINED ${mp.code} — press READY`);
+      mpSetStatus(`JOINED ${mp.code} — READY`);
+      renderMpBoard(mp.snap);
       return;
     }
 
     if(msg.t === "lobby"){
       mp.snap = msg.snap;
-      const n = msg.snap?.players?.length || 0;
-      mpSetStatus(`LOBBY ${msg.snap.code} — players: ${n} — press READY`);
+      // if host, allow level/pipes; else lock them to host settings
+      applySnapToSelectors(mp.snap);
+      mpSetStatus(`LOBBY ${mp.snap.code} — players: ${(mp.snap.players||[]).length}`);
+      renderMpBoard(mp.snap);
       return;
     }
 
@@ -495,12 +582,15 @@ function mpConnect(){
       running = false;
       gameOver = false;
       showOnly("none");
+      applySnapToSelectors(mp.snap);
       mpSetStatus(`STARTED ${mp.code}`);
+      renderMpBoard(mp.snap);
       return;
     }
 
     if(msg.t === "state"){
       mp.snap = msg.snap;
+      renderMpBoard(mp.snap);
       return;
     }
 
@@ -516,6 +606,7 @@ function mpConnect(){
       syncUI();
       showOnly("over");
       mpSetStatus(`GAME OVER — room ${mp.code}`);
+      renderMpBoard(mp.snap);
       return;
     }
 
@@ -525,24 +616,79 @@ function mpConnect(){
     }
   };
 
-  mp.ws.onclose = () => {
-    mp.connected = false;
-    mp.inRoom = false;
-    mp.active = false;
-    mpSetStatus("DISCONNECTED");
-  };
+  mp.ws.onopen = onOpen;
+  mp.ws.onmessage = onMsg;
+  mp.ws.onclose = onClose;
+}
+
+// selectors ↔ snap
+function applySnapToSelectors(snap){
+  if(!snap) return;
+
+  const host = isHostSnap(snap);
+
+  if(levelSel){
+    levelSel.value = snap.levelId || getSelectedLevelId();
+    levelSel.disabled = (!host && mp.inRoom); // only host changes during MP
+  }
+  if(mpPipeSel){
+    mpPipeSel.value = snap.pipeSkin || "pipe_classic";
+    mpPipeSel.disabled = (!host && mp.inRoom);
+  }
+  if(mpSkinSel){
+    // we keep local selection (equipped), but if your skin got set, keep UI in sync:
+    const me = (snap.players || []).find(p => p.id === mp.clientId);
+    if(me && me.birdSkin) mpSkinSel.value = me.birdSkin;
+  }
+}
+
+// leaderboard overlay
+function renderMpBoard(snap){
+  if(!mpBoard || !mpBoardList) return;
+
+  const visible = !!(snap && (mp.inRoom || mp.active) && (snap.players && snap.players.length));
+  mpBoard.classList.toggle("hidden", !visible);
+  if(!visible){
+    mpBoardList.innerHTML = "";
+    return;
+  }
+
+  // sort: alive first, then score desc
+  const players = [...snap.players].sort((a,b)=>{
+    const aa = a.alive ? 1 : 0;
+    const bb = b.alive ? 1 : 0;
+    if(aa !== bb) return bb - aa;
+    return (b.score|0) - (a.score|0);
+  });
+
+  mpBoardList.innerHTML = "";
+  for(const p of players){
+    const row = document.createElement("div");
+    row.className = "mpLine" + (p.alive ? "" : " dead");
+    const who = document.createElement("div");
+    who.className = "who";
+    who.textContent = (p.id === snap.hostId ? "★ " : "") + (p.id === mp.clientId ? "YOU " : "") + (p.name || "PLAYER");
+
+    const pts = document.createElement("div");
+    pts.className = "pts";
+    pts.textContent = String(p.score ?? 0);
+
+    row.appendChild(who);
+    row.appendChild(pts);
+    mpBoardList.appendChild(row);
+  }
 }
 
 // MP buttons
 createRoomBtn?.addEventListener("click", ()=>{
   mpConnect();
-  const name = (mpName?.value || "PLAYER").trim().slice(0,12);
+  const name = (mpName?.value || "PLAYER").trim().slice(0,14);
   mpSend({ t:"createRoom", name });
 });
 
 joinRoomBtn?.addEventListener("click", ()=>{
   mpConnect();
-  const name = (mpName?.value || "PLAYER").trim().slice(0,12);
+  const name = (mpName?.value || "PLAYER").trim().slice(0,14);
   const code = (roomCodeInp?.value || "").trim().toUpperCase();
   mpSend({ t:"joinRoom", name, code });
 });
@@ -553,74 +699,61 @@ readyBtn?.addEventListener("click", ()=>{
   mpSetStatus(`READY — waiting... (${mp.code})`);
 });
 
+// MP selectors actions
+mpSkinSel?.addEventListener("change", ()=>{
+  const v = (mpSkinSel.value || "bird_classic");
+  equipped.bird = v;
+  saveJSON(LS.EQUIP, equipped);
+  if(mp.connected && mp.inRoom) mpSend({ t:"setSkin", birdSkin: v });
+});
+
+levelSel?.addEventListener("change", ()=>{
+  // In SOLO this affects physics immediately on next start.
+  // In MP only host can change (server will ignore others).
+  if(mp.connected && mp.inRoom){
+    mpSend({ t:"setLevel", levelId: getSelectedLevelId() });
+  }
+});
+
+mpPipeSel?.addEventListener("change", ()=>{
+  if(mp.connected && mp.inRoom){
+    mpSend({ t:"setPipeSkin", pipeSkin: mpPipeSel.value });
+  }
+});
+
+// MP jump
 function mpJump(){
   if(!mp.active) return false;
   mpSend({ t:"jump" });
   return true;
 }
 
-function drawMP(dt){
-  const snap = mp.snap;
-  if(!snap) return;
-
-  score = snap.score ?? score;
-  scoreHud.textContent = String(score);
-
-  drawBackground(dt, false);
-
-  const serverPipes = snap.pipes || [];
-  for(const p of serverPipes) drawPipe(p);
-
-  const players = snap.players || [];
-  for(const pl of players){
-    const cx = pl.x + BIRD_DRAW/2;
-    const cy = pl.y + BIRD_DRAW/2;
-    const tilt = Math.max(-0.45, Math.min(0.65, (pl.vy || 0) / 650));
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(tilt);
-
-    const o = 2;
-    if(birdImg.complete && birdImg.naturalWidth > 0){
-      ctx.drawImage(birdImg, -BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-      ctx.drawImage(birdImg, -BIRD_DRAW/2 + o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-      ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 - o, BIRD_DRAW, BIRD_DRAW);
-      ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 + o, BIRD_DRAW, BIRD_DRAW);
-      ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    }else{
-      ctx.fillStyle = "#ffd08a";
-      ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    }
-
-    ctx.restore();
-  }
-
-  drawFloor();
-}
-
 // ===== asset warn =====
 setTimeout(()=>{
   const badBg = !(bgImg.complete && bgImg.naturalWidth > 0);
-  const badBird = !(birdImg.complete && birdImg.naturalWidth > 0);
+  const classic = birdImgs.bird_classic;
+  const badBird = !(classic.complete && classic.naturalWidth > 0);
   if((badBg || badBird) && assetWarn){
     assetWarn.classList.remove("hidden");
     assetWarn.textContent =
-      "Assets not found. Put files: assets/bg_wide.png and assets/bird.png (or fix names/paths).";
+      "Assets missing. Required: assets/bg_wide.png and assets/bird.png (plus optional bird_red/cyan/gold).";
   }
 }, 700);
 
-// ===== inputs =====
+// ===== INPUTS =====
 canvas.addEventListener("pointerdown", (e)=>{
   e.preventDefault();
 
   if(mpJump()) return;
 
+  // ignore clicks when overlays are visible
   if(!menuOverlay.classList.contains("hidden")) return;
   if(!shopOverlay.classList.contains("hidden")) return;
   if(!overOverlay.classList.contains("hidden")) return;
 
-  if(running) jumpSolo();
+  if(running){
+    jumpSolo(getLevel());
+  }
 }, { passive:false });
 
 document.addEventListener("keydown", (e)=>{
@@ -637,46 +770,53 @@ document.addEventListener("keydown", (e)=>{
       startSolo();
       return;
     }
-    if(running) jumpSolo();
+    if(running) jumpSolo(getLevel());
   }
 });
 
 document.addEventListener("visibilitychange", ()=>{ paused = document.hidden; });
 
-// ===== buttons =====
-playSoloBtn.addEventListener("click", startSolo);
-shopBtn.addEventListener("click", ()=>{
+// ===== MENU BUTTONS =====
+playSoloBtn?.addEventListener("click", startSolo);
+
+shopBtn?.addEventListener("click", ()=>{
   rebuildShop();
   showOnly("shop");
   syncUI();
 });
 
-backFromShopBtn.addEventListener("click", ()=>{
+backFromShopBtn?.addEventListener("click", ()=>{
   showOnly("menu");
   syncUI();
 });
 
-resetShopBtn.addEventListener("click", ()=>{
+resetShopBtn?.addEventListener("click", ()=>{
   coins = 0;
   owned = { pipe_classic:true, bird_classic:true };
   equipped = { pipe:"pipe_classic", bird:"bird_classic" };
   saveInt(LS.COINS, coins);
   saveJSON(LS.OWNED, owned);
   saveJSON(LS.EQUIP, equipped);
+  if(mpSkinSel) mpSkinSel.value = equipped.bird;
+  if(mp.connected && mp.inRoom) mpSend({ t:"setSkin", birdSkin: equipped.bird });
   syncUI();
   rebuildShop();
 });
 
-restartBtn.addEventListener("click", ()=>{
+restartBtn?.addEventListener("click", ()=>{
   startSolo();
 });
 
-menuBtn.addEventListener("click", ()=>{
+menuBtn?.addEventListener("click", ()=>{
   showOnly("menu");
   syncUI();
 });
 
-// ===== loop =====
+// ===== LOOP / FPS =====
+let last = performance.now();
+let fpsAcc = 0;
+let fpsFrames = 0;
+
 function step(now){
   let dt = (now - last) / 1000;
   last = now;
@@ -690,34 +830,63 @@ function step(now){
 
   ctx.clearRect(0,0,W,H);
 
-  if(mp.active || mp.snap){
-    drawMP(dt);
+  // MULTIPLAYER DRAW
+  if(mp.snap && (mp.inRoom || mp.active)){
+    const snap = mp.snap;
+    const level = LEVELS[snap.levelId || "classic"] || LEVELS.classic;
+
+    drawBackground(dt, level.speed, false);
+
+    // pipes (host chooses pipe skin)
+    const pipeSkin = snap.pipeSkin || "pipe_classic";
+    for(const p of (snap.pipes || [])) drawPipe(p, pipeSkin);
+
+    // players
+    for(const pl of (snap.players || [])){
+      const isMe = (pl.id === mp.clientId);
+      drawBirdAt(pl.x, pl.y, pl.vy, pl.birdSkin || "bird_classic", isMe);
+      drawNameTag(pl.x, pl.y, pl.name || "PLAYER", isMe);
+    }
+
+    drawFloor();
+
+    // keep HUD score: room score (max)
+    score = snap.score ?? score;
+    scoreHud.textContent = String(score);
+
     requestAnimationFrame(step);
     return;
   }
 
-  drawBackground(dt, false);
+  // SOLO DRAW + UPDATE
+  const level = getLevel();
+  drawBackground(dt, level.speed, false);
 
   if(running && !paused && !gameOver){
-    bird.vy += GRAVITY * 60 * dt;
-    bird.vy = Math.min(bird.vy, MAX_FALL);
+    // physics
+    bird.vy += level.gravity * 60 * dt;
+    bird.vy = Math.min(bird.vy, level.maxFall);
     bird.y += bird.vy * dt;
 
+    // top barrier
     if(bird.y < 0){ bird.y = 0; bird.vy = 0; }
 
+    // floor
     if(bird.y + BIRD_DRAW >= H - FLOOR_H){
       bird.y = H - FLOOR_H - BIRD_DRAW;
       endSolo();
     }
 
+    // spawn pipes
     spawnT += dt;
-    if(spawnT >= SPAWN_EVERY){
-      spawnT -= SPAWN_EVERY;
-      spawnPipe();
+    if(spawnT >= level.spawnEvery){
+      spawnT -= level.spawnEvery;
+      spawnPipeSolo(level);
     }
 
+    // move pipes + score
     for(const p of pipes){
-      p.x -= PIPE_SPEED * dt;
+      p.x -= level.speed * dt;
       if(!p.passed && p.x + PIPE_W < bird.x){
         p.passed = true;
         score++;
@@ -729,18 +898,21 @@ function step(now){
     }
     pipes = pipes.filter(p => p.x + PIPE_W > -20);
 
+    // collisions
     for(const p of pipes){
-      if(pipeCollision(p)){
+      if(pipeCollisionSolo(p)){
         endSolo();
         break;
       }
     }
   }
 
-  for(const p of pipes) drawPipe(p);
-  if(bird) drawBirdSolo();
+  // draw pipes + bird
+  for(const p of pipes) drawPipe(p, equipped.pipe);
+  if(bird) drawBirdAt(bird.x, bird.y, bird.vy, equipped.bird, true);
   drawFloor();
 
+  // keep best visible
   bestHud.textContent = String(best);
   bestTop.textContent = String(best);
 
@@ -751,4 +923,10 @@ function step(now){
 syncUI();
 showOnly("menu");
 mpSetStatus("—");
+
+// set selectors from local equip
+if(mpSkinSel) mpSkinSel.value = equipped.bird;
+if(levelSel) levelSel.value = getSelectedLevelId();
+if(mpPipeSel) mpPipeSel.value = equipped.pipe;
+
 requestAnimationFrame(step);
