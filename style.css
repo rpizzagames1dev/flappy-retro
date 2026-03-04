@@ -560,3 +560,32 @@ code{
 .sprite.s1{ background: linear-gradient(135deg, rgba(255,207,122,0.22), rgba(0,0,0,0.18)); }
 .sprite.s2{ background: linear-gradient(135deg, rgba(255,106,149,0.20), rgba(0,0,0,0.18)); }
 .sprite.s3{ background: linear-gradient(135deg, rgba(124,246,255,0.16), rgba(0,0,0,0.18)); }
+.statusLine{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.18);
+}
+
+.dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.35) inset;
+}
+
+.dot--green{
+  background: rgba(60, 255, 140, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.35) inset,
+    0 0 16px rgba(60, 255, 140, 0.30);
+}
+
+.statusText{
+  font-size: 11px;
+  letter-spacing: 3px;
+  opacity: 0.92;
+}
