@@ -1,9 +1,8 @@
-z// flappy.js — Solo + Online Multiplayer (rooms) + Shop (pipe/bird skins)
+// flappy.js — Solo + Online Multiplayer (rooms) + Shop (simple skins)
 // IMPORTANT: set MP_URL below.
 
 // === MULTIPLAYER SERVER URL ===
-// Local:  ws://localhost:8080
-// Online: wss://YOUR-DOMAIN
+// Online (Render):
 const MP_URL = "wss://flappy-retro.onrender.com";
 
 const canvas = document.getElementById("gameCanvas");
@@ -302,46 +301,6 @@ function drawPipe(pipe){
   }
 }
 
-function drawBirdSolo(){
-  const skin = getBirdSkin();
-  const cx = bird.x + BIRD_DRAW/2;
-  const cy = bird.y + BIRD_DRAW/2;
-  const tilt = Math.max(-0.45, Math.min(0.65, bird.vy / 650));
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(tilt);
-
-  // outline hack
-  const o = 2;
-  if(birdImg.complete && birdImg.naturalWidth > 0){
-    ctx.drawImage(birdImg, -BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2 + o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 - o, BIRD_DRAW, BIRD_DRAW);
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 + o, BIRD_DRAW, BIRD_DRAW);
-  }else{
-    ctx.fillStyle = skin.outline;
-    ctx.fillRect(-BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-  }
-
-  // main
-  if(birdImg.complete && birdImg.naturalWidth > 0){
-    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-  }else{
-    ctx.fillStyle = "#ffd08a";
-    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-  }
-
-  if(skin.tint){
-    ctx.globalCompositeOperation = "source-atop";
-    ctx.fillStyle = skin.tint;
-    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-    ctx.globalCompositeOperation = "source-over";
-  }
-
-  ctx.restore();
-}
-
 function drawFloor(){
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(0, H - FLOOR_H, W, FLOOR_H);
@@ -372,6 +331,10 @@ function drawBackground(dt, frozen=false){
     ctx.fillStyle = g;
     ctx.fillRect(0,0,W,H);
   }
+}
+
+function rectsOverlap(a,b){
+  return !(b.x > a.x + a.w || b.x + b.w < a.x || b.y > a.y + a.h || b.y + b.h < a.y);
 }
 
 // ===== SOLO GAME =====
@@ -413,9 +376,6 @@ function spawnPipe(){
   pipes.push({ x: W + 10, topH, bottomY, passed:false });
 }
 
-function rectsOverlap(a,b){
-  return !(b.x > a.x + a.w || b.x + b.w < a.x || b.y > a.y + a.h || b.y + b.h < a.y);
-}
 function birdHitbox(){
   const pad = BIRD_PAD;
   return { x: bird.x + pad, y: bird.y + pad, w: BIRD_DRAW - pad*2, h: BIRD_DRAW - pad*2 };
@@ -429,6 +389,40 @@ function pipeCollision(pipe){
 function jumpSolo(){
   if(!running || paused || gameOver) return;
   bird.vy = JUMP_VY;
+}
+
+function drawBirdSolo(){
+  const skin = getBirdSkin();
+  const cx = bird.x + BIRD_DRAW/2;
+  const cy = bird.y + BIRD_DRAW/2;
+  const tilt = Math.max(-0.45, Math.min(0.65, bird.vy / 650));
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(tilt);
+
+  const o = 2;
+  if(birdImg.complete && birdImg.naturalWidth > 0){
+    ctx.drawImage(birdImg, -BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(birdImg, -BIRD_DRAW/2 + o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 - o, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2 + o, BIRD_DRAW, BIRD_DRAW);
+    ctx.drawImage(birdImg, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+  }else{
+    ctx.fillStyle = skin.outline;
+    ctx.fillRect(-BIRD_DRAW/2 - o, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.fillStyle = "#ffd08a";
+    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+  }
+
+  if(skin.tint){
+    ctx.globalCompositeOperation = "source-atop";
+    ctx.fillStyle = skin.tint;
+    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  ctx.restore();
 }
 
 // ===== ONLINE MULTIPLAYER =====
@@ -498,7 +492,7 @@ function mpConnect(){
     if(msg.t === "start"){
       mp.snap = msg.snap;
       mp.active = true;
-      running = false;      // stop solo loop updates
+      running = false;
       gameOver = false;
       showOnly("none");
       mpSetStatus(`STARTED ${mp.code}`);
@@ -513,7 +507,7 @@ function mpConnect(){
     if(msg.t === "gameOver"){
       mp.snap = msg.snap;
       mp.active = false;
-      // show game over overlay
+
       score = mp.snap?.score ?? score;
       if(score > best){
         best = score;
@@ -565,27 +559,20 @@ function mpJump(){
   return true;
 }
 
-// Draw MP snapshot
 function drawMP(dt){
   const snap = mp.snap;
   if(!snap) return;
 
-  // lock HUD to server score
   score = snap.score ?? score;
   scoreHud.textContent = String(score);
 
-  // freeze bgX when MP (server moves pipes; bg is just cosmetic)
   drawBackground(dt, false);
 
-  // draw pipes from server
   const serverPipes = snap.pipes || [];
   for(const p of serverPipes) drawPipe(p);
 
-  // draw players from server
   const players = snap.players || [];
   for(const pl of players){
-    // draw same bird sprite at pl.x/pl.y with their vy
-    const skin = getBirdSkin();
     const cx = pl.x + BIRD_DRAW/2;
     const cy = pl.y + BIRD_DRAW/2;
     const tilt = Math.max(-0.45, Math.min(0.65, (pl.vy || 0) / 650));
@@ -606,18 +593,6 @@ function drawMP(dt){
       ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
     }
 
-    if(skin.tint){
-      ctx.globalCompositeOperation = "source-atop";
-      ctx.fillStyle = skin.tint;
-      ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    // label marker (P1/P2/..)
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = pl.alive ? "rgba(255,255,255,0.80)" : "rgba(255,80,80,0.80)";
-    ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2 - 8, 26, 6);
-
     ctx.restore();
   }
 
@@ -625,9 +600,7 @@ function drawMP(dt){
 }
 
 // ===== asset warn =====
-let warned = false;
 setTimeout(()=>{
-  if(warned) return;
   const badBg = !(bgImg.complete && bgImg.naturalWidth > 0);
   const badBird = !(birdImg.complete && birdImg.naturalWidth > 0);
   if((badBg || badBird) && assetWarn){
@@ -635,17 +608,14 @@ setTimeout(()=>{
     assetWarn.textContent =
       "Assets not found. Put files: assets/bg_wide.png and assets/bird.png (or fix names/paths).";
   }
-  warned = true;
 }, 700);
 
 // ===== inputs =====
 canvas.addEventListener("pointerdown", (e)=>{
   e.preventDefault();
 
-  // if MP running -> send jump to server
   if(mpJump()) return;
 
-  // solo: tap jumps only when game running and no overlays
   if(!menuOverlay.classList.contains("hidden")) return;
   if(!shopOverlay.classList.contains("hidden")) return;
   if(!overOverlay.classList.contains("hidden")) return;
@@ -657,10 +627,8 @@ document.addEventListener("keydown", (e)=>{
   if(e.code === "Space"){
     e.preventDefault();
 
-    // MP active -> jump
     if(mpJump()) return;
 
-    // menu shortcuts
     if(!menuOverlay.classList.contains("hidden")){
       startSolo();
       return;
@@ -700,7 +668,6 @@ resetShopBtn.addEventListener("click", ()=>{
 });
 
 restartBtn.addEventListener("click", ()=>{
-  // restart SOLO only; online restarts when host starts a new room (simple)
   startSolo();
 });
 
@@ -721,17 +688,14 @@ function step(now){
     fpsAcc = 0; fpsFrames = 0;
   }
 
-  // DRAW + UPDATE
   ctx.clearRect(0,0,W,H);
 
   if(mp.active || mp.snap){
-    // MP draw from server snapshot
     drawMP(dt);
     requestAnimationFrame(step);
     return;
   }
 
-  // SOLO
   drawBackground(dt, false);
 
   if(running && !paused && !gameOver){
