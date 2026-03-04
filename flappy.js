@@ -1,4 +1,11 @@
-// flappy.js — Solo + Online MP + Shop w/ icons + Levels + Names over heads + Leaderboard
+// flappy.js — Solo + Online MP + Shop icons + Levels + Names + Leaderboard
+// Fixes:
+//  - shop no longer shows asset paths
+//  - MP render only when active (no frozen frame after gameOver)
+//  - restart/menu works without F5 (clears MP state)
+//  - skin changes allowed (owned-only) and sent to server
+//  - safer MP connection + less UI desync
+
 const MP_URL = "wss://flappy-retro.onrender.com";
 
 const canvas = document.getElementById("gameCanvas");
@@ -63,7 +70,6 @@ function makeImg(src){
   img.src = src;
   return img;
 }
-
 const birdImgs = {
   bird_classic: makeImg("assets/bird.png"),
   bird_red: makeImg("assets/bird_red.png"),
@@ -101,9 +107,9 @@ let best = loadInt(LS.BEST, 0);
 
 // levels
 const LEVELS = {
-  classic: { id:"classic", name:"CLASSIC", gravity:22.0, jumpVy:-420.0, maxFall:900.0, gap:190, speed:210.0, spawnEvery:1.35 },
-  hard:    { id:"hard",    name:"HARD",    gravity:25.0, jumpVy:-435.0, maxFall:950.0, gap:168, speed:235.0, spawnEvery:1.20 },
-  zen:     { id:"zen",     name:"ZEN",     gravity:20.0, jumpVy:-405.0, maxFall:850.0, gap:210, speed:195.0, spawnEvery:1.50 },
+  classic: { id:"classic", gravity:22.0, jumpVy:-420.0, maxFall:900.0, gap:190, speed:210.0, spawnEvery:1.35 },
+  hard:    { id:"hard",    gravity:25.0, jumpVy:-435.0, maxFall:950.0, gap:168, speed:235.0, spawnEvery:1.20 },
+  zen:     { id:"zen",     gravity:20.0, jumpVy:-405.0, maxFall:850.0, gap:210, speed:195.0, spawnEvery:1.50 },
 };
 
 function getSelectedLevelId(){
@@ -112,16 +118,16 @@ function getSelectedLevelId(){
 }
 function getLevel(){ return LEVELS[getSelectedLevelId()]; }
 
-// shop items
+// shop items (DESC = normalne opisy, zero ścieżek)
 const SHOP_ITEMS = [
-  { id:"pipe_classic", type:"pipe", name:"PIPES: CLASSIC", desc:"Default pipes", cost:0 },
-  { id:"pipe_gold", type:"pipe", name:"PIPES: GOLD", desc:"Gold theme", cost:120 },
-  { id:"pipe_night", type:"pipe", name:"PIPES: NIGHT", desc:"Dark theme", cost:80 },
+  { id:"pipe_classic", type:"pipe", name:"PIPES: CLASSIC", desc:"Default look", cost:0 },
+  { id:"pipe_gold", type:"pipe", name:"PIPES: GOLD", desc:"Gold vibe", cost:120 },
+  { id:"pipe_night", type:"pipe", name:"PIPES: NIGHT", desc:"Dark vibe", cost:80 },
 
-  { id:"bird_classic", type:"bird", name:"BIRD: CLASSIC", desc:"assets/bird.png", cost:0 },
-  { id:"bird_red", type:"bird", name:"BIRD: RED", desc:"assets/bird_red.png", cost:60 },
-  { id:"bird_cyan", type:"bird", name:"BIRD: CYAN", desc:"assets/bird_cyan.png", cost:60 },
-  { id:"bird_gold", type:"bird", name:"BIRD: GOLD", desc:"assets/bird_gold.png", cost:140 },
+  { id:"bird_classic", type:"bird", name:"BIRD: CLASSIC", desc:"Starter skin", cost:0 },
+  { id:"bird_red", type:"bird", name:"BIRD: RED", desc:"Red skin", cost:60 },
+  { id:"bird_cyan", type:"bird", name:"BIRD: CYAN", desc:"Cyan skin", cost:60 },
+  { id:"bird_gold", type:"bird", name:"BIRD: GOLD", desc:"Gold skin", cost:140 },
 ];
 
 let owned = loadJSON(LS.OWNED, { pipe_classic:true, bird_classic:true });
@@ -144,15 +150,31 @@ function showOnly(which){
 }
 function mpSetStatus(s){ if(mpStatus) mpStatus.textContent = s; }
 
-// ===== shop icon helpers =====
 function birdIconSrc(id){
-  if(id === "bird_classic") return "assets/bird.png";
   if(id === "bird_red") return "assets/bird_red.png";
   if(id === "bird_cyan") return "assets/bird_cyan.png";
   if(id === "bird_gold") return "assets/bird_gold.png";
   return "assets/bird.png";
 }
 
+// Only owned skins in dropdown
+function refreshSkinSelect(){
+  if(!mpSkinSel) return;
+  const cur = equipped.bird || "bird_classic";
+
+  mpSkinSel.innerHTML = "";
+  for(const it of SHOP_ITEMS.filter(i=>i.type==="bird")){
+    if(!owned[it.id]) continue;
+    const opt = document.createElement("option");
+    opt.value = it.id;
+    opt.textContent = it.name;
+    mpSkinSel.appendChild(opt);
+  }
+
+  mpSkinSel.value = owned[cur] ? cur : "bird_classic";
+}
+
+// Shop UI with icons (no asset path text)
 function rebuildShop(){
   shopList.innerHTML = "";
 
@@ -166,12 +188,9 @@ function rebuildShop(){
     const top = document.createElement("div");
     top.className = "shopRow";
 
-    let iconHTML = "";
-    if(item.type === "bird"){
-      iconHTML = `<img class="shopIcon" src="${birdIconSrc(item.id)}" alt="">`;
-    }else{
-      iconHTML = `<div class="pipeIcon ${item.id}"></div>`;
-    }
+    const iconHTML = (item.type === "bird")
+      ? `<img class="shopIcon" src="${birdIconSrc(item.id)}" alt="">`
+      : `<div class="pipeIcon ${item.id}"></div>`;
 
     top.innerHTML = `
       <div class="shopLeft">
@@ -208,10 +227,21 @@ function rebuildShop(){
         saveInt(LS.COINS, coins);
         saveJSON(LS.OWNED, owned);
 
-        // auto-equip if it's a bird and you want
+        // optional: auto equip after buy
+        if(item.type === "bird") equipped.bird = item.id;
+        if(item.type === "pipe") equipped.pipe = item.id;
+        saveJSON(LS.EQUIP, equipped);
+
+        refreshSkinSelect();
+        if(mpPipeSel) mpPipeSel.value = equipped.pipe;
+
+        // if in MP, send updated skin immediately
+        if(mp.connected && mp.inRoom && item.type === "bird"){
+          mpSend({ t:"setSkin", birdSkin: equipped.bird });
+        }
+
         syncUI();
         rebuildShop();
-        refreshSkinSelect(); // keep MP dropdown in sync
       };
       btns.appendChild(buy);
     }else{
@@ -226,10 +256,14 @@ function rebuildShop(){
         saveJSON(LS.EQUIP, equipped);
         refreshSkinSelect();
 
-        // if MP and in room, send live skin update
         if(item.type === "bird" && mp.connected && mp.inRoom){
           mpSend({ t:"setSkin", birdSkin: equipped.bird });
         }
+        if(item.type === "pipe" && mp.connected && mp.inRoom){
+          // only host will apply, but keep local equip anyway
+          mpSend({ t:"setPipeSkin", pipeSkin: equipped.pipe });
+        }
+
         rebuildShop();
       };
       btns.appendChild(equipBtn);
@@ -241,26 +275,6 @@ function rebuildShop(){
   }
 }
 
-// only show owned skins in dropdown, and block selecting unowned
-function refreshSkinSelect(){
-  if(!mpSkinSel) return;
-  const cur = equipped.bird || "bird_classic";
-
-  mpSkinSel.innerHTML = "";
-  const birds = SHOP_ITEMS.filter(i => i.type === "bird");
-
-  for(const it of birds){
-    if(!owned[it.id]) continue;
-    const opt = document.createElement("option");
-    opt.value = it.id;
-    opt.textContent = it.name;
-    mpSkinSel.appendChild(opt);
-  }
-
-  if(owned[cur]) mpSkinSel.value = cur;
-  else mpSkinSel.value = "bird_classic";
-}
-
 // ===== visuals =====
 function getPipeStyle(pipeSkin){
   const id = pipeSkin || equipped.pipe || "pipe_classic";
@@ -269,7 +283,6 @@ function getPipeStyle(pipeSkin){
   if(id === "pipe_night"){ fill="#2bd26a"; shade="#1f8f49"; cap="#35ff80"; edge="#07140b"; }
   return { fill, shade, cap, edge };
 }
-
 const PIPE_LINE = 4;
 const CAP_H = 26;
 const CAP_OVERHANG = 8;
@@ -278,22 +291,18 @@ const SHADE_W = 12;
 function drawPipeRect(x, y, w, h, st){
   ctx.fillStyle = st.fill;
   ctx.fillRect(x, y, w, h);
-
   ctx.fillStyle = st.shade;
   ctx.fillRect(x + Math.floor(w * 0.62), y, SHADE_W, h);
-
   ctx.lineWidth = PIPE_LINE;
   ctx.strokeStyle = st.edge;
   ctx.strokeRect(x, y, w, h);
 }
-
 function drawPipeCap(x, y, w, h, st){
   const cx = x - CAP_OVERHANG;
   const cw = w + CAP_OVERHANG * 2;
 
   ctx.fillStyle = st.cap;
   ctx.fillRect(cx, y, cw, h);
-
   ctx.fillStyle = st.shade;
   ctx.fillRect(cx + Math.floor(cw * 0.62), y, SHADE_W, h);
 
@@ -304,7 +313,6 @@ function drawPipeCap(x, y, w, h, st){
   ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.fillRect(cx + PIPE_LINE, y + PIPE_LINE, cw - PIPE_LINE*2, 3);
 }
-
 function drawPipe(pipe, pipeSkin){
   const st = getPipeStyle(pipeSkin);
   const x = Math.round(pipe.x);
@@ -328,7 +336,6 @@ function drawPipe(pipe, pipeSkin){
     if(bodyH > 0) drawPipeRect(x, bodyY, PIPE_W, bodyH, st);
   }
 }
-
 function drawFloor(){
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillRect(0, H - FLOOR_H, W, FLOOR_H);
@@ -369,21 +376,17 @@ function drawBirdAt(x, y, vy, birdSkin){
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(tilt);
-
   if(img && img.complete && img.naturalWidth > 0){
     ctx.drawImage(img, -BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
   }else{
-    // fallback square (means missing asset)
     ctx.fillStyle = "#ffd08a";
     ctx.fillRect(-BIRD_DRAW/2, -BIRD_DRAW/2, BIRD_DRAW, BIRD_DRAW);
   }
-
   ctx.restore();
 }
 
 function drawNameTag(x, y, name){
   const label = (name || "PLAYER").slice(0, 14);
-
   ctx.save();
   ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
   ctx.textAlign = "center";
@@ -406,7 +409,6 @@ function drawNameTag(x, y, name){
 
   ctx.fillStyle = "rgba(255,255,255,0.92)";
   ctx.fillText(label, tx, ty - 3);
-
   ctx.restore();
 }
 
@@ -435,6 +437,8 @@ function resetSolo(){
 }
 
 function startSolo(){
+  // IMPORTANT: leaving MP state prevents frozen MP render
+  leaveMP("Starting solo");
   running = true;
   paused = false;
   resetSolo();
@@ -444,7 +448,6 @@ function startSolo(){
 function endSolo(){
   running = false;
   gameOver = true;
-
   if(score > best){
     best = score;
     saveInt(LS.BEST, best);
@@ -454,19 +457,16 @@ function endSolo(){
 }
 
 function spawnPipeSolo(level){
-  const PIPE_GAP = level.gap;
-
   const topMargin = 80;
   const bottomMargin = FLOOR_H + 80;
-  const usable = H - topMargin - bottomMargin - PIPE_GAP;
+  const usable = H - topMargin - bottomMargin - level.gap;
   const topH = topMargin + Math.random()*usable;
-  const bottomY = topH + PIPE_GAP;
+  const bottomY = topH + level.gap;
   pipes.push({ x: W + 10, topH, bottomY, passed:false });
 }
 
 function birdHitboxSolo(){
-  const pad = BIRD_PAD;
-  return { x: bird.x + pad, y: bird.y + pad, w: BIRD_DRAW - pad*2, h: BIRD_DRAW - pad*2 };
+  return { x: bird.x + BIRD_PAD, y: bird.y + BIRD_PAD, w: BIRD_DRAW - BIRD_PAD*2, h: BIRD_DRAW - BIRD_PAD*2 };
 }
 
 function pipeCollisionSolo(pipe){
@@ -498,20 +498,31 @@ function mpSend(obj){
   }
 }
 
+function leaveMP(reason=""){
+  // clear client-side MP state so UI doesn't get stuck
+  mp.active = false;
+  mp.inRoom = false;
+  mp.code = null;
+  mp.snap = null;
+
+  if(mpBoard) mpBoard.classList.add("hidden");
+  if(mpBoardList) mpBoardList.innerHTML = "";
+
+  if(mp.ws){
+    try { mp.ws.close(); } catch {}
+    mp.ws = null;
+  }
+  mp.connected = false;
+  mpSetStatus(reason ? `— (${reason})` : "—");
+}
+
 function isHostSnap(snap){
   return snap && mp.clientId && snap.hostId === mp.clientId;
 }
 
-function setMpButtonsDisabled(v){
-  createRoomBtn.disabled = v;
-  joinRoomBtn.disabled = v;
-  readyBtn.disabled = v;
-}
-
 function renderMpBoard(snap){
-  const visible = !!(snap && (mp.inRoom || mp.active) && (snap.players && snap.players.length));
+  const visible = !!(snap && (mp.inRoom || mp.active) && snap.players && snap.players.length);
   mpBoard.classList.toggle("hidden", !visible);
-
   if(!visible){
     mpBoardList.innerHTML = "";
     return;
@@ -547,61 +558,40 @@ function applySnapToSelectors(snap){
   if(!snap) return;
   const host = isHostSnap(snap);
 
-  // level / pipes controlled by host in MP
-  levelSel.value = snap.levelId || getSelectedLevelId();
-  levelSel.disabled = (mp.inRoom && !host);
-
-  mpPipeSel.value = snap.pipeSkin || "pipe_classic";
-  mpPipeSel.disabled = (mp.inRoom && !host);
-
-  // skin select stays local but if server reports my skin, sync it
-  const me = (snap.players || []).find(p => p.id === mp.clientId);
-  if(me?.birdSkin && owned[me.birdSkin]){
-    equipped.bird = me.birdSkin;
-    saveJSON(LS.EQUIP, equipped);
-    refreshSkinSelect();
+  // host controls these in MP
+  if(levelSel){
+    levelSel.value = snap.levelId || getSelectedLevelId();
+    levelSel.disabled = (mp.inRoom && !host);
+  }
+  if(mpPipeSel){
+    mpPipeSel.value = snap.pipeSkin || "pipe_classic";
+    mpPipeSel.disabled = (mp.inRoom && !host);
   }
 }
 
 function mpConnect(){
   if(mp.ws && (mp.ws.readyState === WebSocket.OPEN || mp.ws.readyState === WebSocket.CONNECTING)) return;
 
-  setMpButtonsDisabled(true);
   mpSetStatus("CONNECTING... (waking server)");
 
-  let opened = false;
   mp.ws = new WebSocket(MP_URL);
 
-  const hardTimeout = setTimeout(() => {
-    if(opened) return;
-    mpSetStatus("STILL WAKING... retrying once");
-    try { mp.ws.close(); } catch {}
-    mp.ws = new WebSocket(MP_URL);
-    mp.ws.onopen = onOpen;
-    mp.ws.onmessage = onMsg;
-    mp.ws.onclose = onClose;
-  }, 7000);
-
-  function onOpen(){
-    opened = true;
-    clearTimeout(hardTimeout);
+  mp.ws.onopen = () => {
     mp.connected = true;
     mpSetStatus("CONNECTED");
-    setMpButtonsDisabled(false);
-  }
+  };
 
-  function onClose(){
-    clearTimeout(hardTimeout);
+  mp.ws.onclose = () => {
+    // keep UI safe
     mp.connected = false;
-    mp.inRoom = false;
     mp.active = false;
+    mp.inRoom = false;
     mp.snap = null;
-    mpSetStatus("DISCONNECTED");
-    setMpButtonsDisabled(false);
     renderMpBoard(null);
-  }
+    mpSetStatus("DISCONNECTED");
+  };
 
-  function onMsg(ev){
+  mp.ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
 
@@ -615,13 +605,15 @@ function mpConnect(){
       mp.code = msg.code;
       mp.snap = msg.snap;
       mpSetStatus(`ROOM ${mp.code} — READY`);
-      // set name + skin right away
+
+      // push my current prefs
       const nm = (mpName.value || "PLAYER").trim().slice(0,14);
       mpSend({ t:"setName", name: nm });
       mpSend({ t:"setSkin", birdSkin: equipped.bird });
-      mpSend({ t:"setPipeSkin", pipeSkin: equipped.pipe });
       mpSend({ t:"setLevel", levelId: getSelectedLevelId() });
+      mpSend({ t:"setPipeSkin", pipeSkin: equipped.pipe });
 
+      applySnapToSelectors(mp.snap);
       renderMpBoard(mp.snap);
       return;
     }
@@ -631,10 +623,12 @@ function mpConnect(){
       mp.code = msg.code;
       mp.snap = msg.snap;
       mpSetStatus(`JOINED ${mp.code} — READY`);
+
       const nm = (mpName.value || "PLAYER").trim().slice(0,14);
       mpSend({ t:"setName", name: nm });
       mpSend({ t:"setSkin", birdSkin: equipped.bird });
 
+      applySnapToSelectors(mp.snap);
       renderMpBoard(mp.snap);
       return;
     }
@@ -642,7 +636,6 @@ function mpConnect(){
     if(msg.t === "lobby"){
       mp.snap = msg.snap;
       applySnapToSelectors(mp.snap);
-      mpSetStatus(`LOBBY ${mp.snap.code} — players: ${(mp.snap.players||[]).length}`);
       renderMpBoard(mp.snap);
       return;
     }
@@ -654,8 +647,8 @@ function mpConnect(){
       gameOver = false;
       showOnly("none");
       applySnapToSelectors(mp.snap);
-      mpSetStatus(`STARTED ${mp.code}`);
       renderMpBoard(mp.snap);
+      mpSetStatus(`STARTED ${mp.code}`);
       return;
     }
 
@@ -669,6 +662,7 @@ function mpConnect(){
       mp.snap = msg.snap;
       mp.active = false;
 
+      // show overlay and allow menu/restart without F5
       score = mp.snap?.score ?? score;
       if(score > best){
         best = score;
@@ -685,11 +679,7 @@ function mpConnect(){
       mpSetStatus(`ERROR: ${msg.message}`);
       return;
     }
-  }
-
-  mp.ws.onopen = onOpen;
-  mp.ws.onmessage = onMsg;
-  mp.ws.onclose = onClose;
+  };
 }
 
 function mpJump(){
@@ -699,65 +689,66 @@ function mpJump(){
 }
 
 // ===== events =====
-createRoomBtn.addEventListener("click", ()=>{
+createRoomBtn?.addEventListener("click", ()=>{
+  refreshSkinSelect();
   mpConnect();
   const nm = (mpName.value || "PLAYER").trim().slice(0,14);
   mpSend({ t:"createRoom", name: nm });
 });
 
-joinRoomBtn.addEventListener("click", ()=>{
+joinRoomBtn?.addEventListener("click", ()=>{
+  refreshSkinSelect();
   mpConnect();
   const nm = (mpName.value || "PLAYER").trim().slice(0,14);
   const code = (roomCodeInp.value || "").trim().toUpperCase();
   mpSend({ t:"joinRoom", name: nm, code });
 });
 
-readyBtn.addEventListener("click", ()=>{
+readyBtn?.addEventListener("click", ()=>{
   if(!mp.connected || !mp.inRoom) return;
   mpSend({ t:"ready" });
   mpSetStatus(`READY — waiting... (${mp.code})`);
 });
 
-mpName.addEventListener("change", ()=>{
+mpName?.addEventListener("change", ()=>{
   const nm = (mpName.value || "PLAYER").trim().slice(0,14);
   if(mp.connected && mp.inRoom) mpSend({ t:"setName", name: nm });
 });
 
-mpSkinSel.addEventListener("change", ()=>{
+mpSkinSel?.addEventListener("change", ()=>{
   const v = mpSkinSel.value || "bird_classic";
 
   if(!owned[v]){
     mpSetStatus("LOCKED SKIN — buy it in SHOP");
-    refreshSkinSelect(); // revert
+    refreshSkinSelect();
     return;
   }
 
   equipped.bird = v;
   saveJSON(LS.EQUIP, equipped);
 
+  // ALWAYS allow changing skin; server will broadcast
   if(mp.connected && mp.inRoom) mpSend({ t:"setSkin", birdSkin: v });
 });
 
-levelSel.addEventListener("change", ()=>{
-  // SOLO: affects physics immediately (next start)
-  // MP: server will accept only from host
-  if(mp.connected && mp.inRoom){
-    mpSend({ t:"setLevel", levelId: getSelectedLevelId() });
-  }
+levelSel?.addEventListener("change", ()=>{
+  // SOLO uses it automatically; MP host can change
+  if(mp.connected && mp.inRoom) mpSend({ t:"setLevel", levelId: getSelectedLevelId() });
 });
 
-mpPipeSel.addEventListener("change", ()=>{
-  if(!owned[mpPipeSel.value]){
+mpPipeSel?.addEventListener("change", ()=>{
+  const v = mpPipeSel.value || "pipe_classic";
+
+  if(!owned[v]){
     mpSetStatus("LOCKED PIPES — buy it in SHOP");
     mpPipeSel.value = equipped.pipe;
     return;
   }
-  equipped.pipe = mpPipeSel.value;
+
+  equipped.pipe = v;
   saveJSON(LS.EQUIP, equipped);
 
-  if(mp.connected && mp.inRoom){
-    mpSend({ t:"setPipeSkin", pipeSkin: mpPipeSel.value });
-  }
+  if(mp.connected && mp.inRoom) mpSend({ t:"setPipeSkin", pipeSkin: v });
 });
 
 // inputs
@@ -794,20 +785,20 @@ document.addEventListener("keydown", (e)=>{
 document.addEventListener("visibilitychange", ()=>{ paused = document.hidden; });
 
 // menu buttons
-playSoloBtn.addEventListener("click", startSolo);
+playSoloBtn?.addEventListener("click", startSolo);
 
-shopBtn.addEventListener("click", ()=>{
+shopBtn?.addEventListener("click", ()=>{
   rebuildShop();
   showOnly("shop");
   syncUI();
 });
 
-backFromShopBtn.addEventListener("click", ()=>{
+backFromShopBtn?.addEventListener("click", ()=>{
   showOnly("menu");
   syncUI();
 });
 
-resetShopBtn.addEventListener("click", ()=>{
+resetShopBtn?.addEventListener("click", ()=>{
   coins = 0;
   owned = { pipe_classic:true, bird_classic:true };
   equipped = { pipe:"pipe_classic", bird:"bird_classic" };
@@ -819,24 +810,45 @@ resetShopBtn.addEventListener("click", ()=>{
   rebuildShop();
 });
 
-restartBtn.addEventListener("click", startSolo);
-menuBtn.addEventListener("click", ()=>{
+// IMPORTANT: restart/menu fix without F5
+restartBtn?.addEventListener("click", ()=>{
+  // if you were in MP, go back to menu and let you ready again (no freeze)
+  if(mp.inRoom || mp.connected){
+    showOnly("menu");
+    mpSetStatus(`— (rematch: press READY)`);
+    // keep connection, just ready again
+    if(mp.connected && mp.inRoom) mpSend({ t:"ready" });
+    return;
+  }
+  startSolo();
+});
+
+menuBtn?.addEventListener("click", ()=>{
+  // always safe exit to menu (also clears MP snap if needed)
+  if(mp.inRoom || mp.connected) {
+    // keep connection but stop any frozen render and show menu
+    mp.active = false;
+    mp.snap = mp.snap; // keep for scoreboard in lobby
+    showOnly("menu");
+    mpSetStatus("—");
+    return;
+  }
   showOnly("menu");
   syncUI();
 });
 
-// asset warning
+// asset warn
 setTimeout(()=>{
   const badBg = !(bgImg.complete && bgImg.naturalWidth > 0);
   const classic = birdImgs.bird_classic;
   const badBird = !(classic.complete && classic.naturalWidth > 0);
   if((badBg || badBird) && assetWarn){
     assetWarn.classList.remove("hidden");
-    assetWarn.textContent = "Missing assets. Required: assets/bg_wide.png and assets/bird.png (plus optional skins).";
+    assetWarn.textContent = "Missing assets. Required: assets/bg_wide.png and assets/bird.png (plus skins).";
   }
 }, 700);
 
-// ===== main loop =====
+// ===== loop =====
 let last = performance.now();
 let fpsAcc = 0;
 let fpsFrames = 0;
@@ -854,8 +866,8 @@ function step(now){
 
   ctx.clearRect(0,0,W,H);
 
-  // MP render
-  if(mp.snap && (mp.inRoom || mp.active)){
+  // MP DRAW ONLY when active (fix frozen after gameOver)
+  if(mp.active && mp.snap){
     const snap = mp.snap;
     const level = LEVELS[snap.levelId || "classic"] || LEVELS.classic;
 
@@ -937,6 +949,5 @@ showOnly("menu");
 mpSetStatus("—");
 refreshSkinSelect();
 if(mpPipeSel) mpPipeSel.value = equipped.pipe;
-if(levelSel) levelSel.value = "classic";
 rebuildShop();
 requestAnimationFrame(step);
