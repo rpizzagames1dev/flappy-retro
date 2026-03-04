@@ -1,6 +1,3 @@
-// server/server.js — MP rooms: names, skins, levels, leaderboard
-// npm start
-
 const http = require("http");
 const WebSocket = require("ws");
 
@@ -32,7 +29,7 @@ function code4(){
   return s;
 }
 
-const rooms = new Map(); // code -> room
+const rooms = new Map();
 let nextClientId = 1;
 
 function rectsOverlap(a,b){
@@ -61,7 +58,7 @@ function makeRoom(hostId){
     score:0,
     pipes:[],
     spawnT:0,
-    players:new Map(), // id -> player
+    players:new Map(),
     tickTimer:null,
     stateTimer:null,
   };
@@ -111,7 +108,6 @@ function spawnPipe(room, level){
 }
 
 function startGame(room){
-  const level = LEVELS[room.levelId] || LEVELS.classic;
   room.started = true;
   room.gameOver = false;
   room.score = 0;
@@ -130,7 +126,7 @@ function startGame(room){
 
   const TICK_HZ = 30;
   const DT = 1 / TICK_HZ;
-  const STATE_HZ = 15;
+  const STATE_HZ = 8; // <<< mniej lagów
 
   if(room.tickTimer) clearInterval(room.tickTimer);
   if(room.stateTimer) clearInterval(room.stateTimer);
@@ -171,7 +167,6 @@ function startGame(room){
         }
       }
 
-      // per-player scoring
       while(pl.nextPipeIndex < room.pipes.length){
         const pipe = room.pipes[pl.nextPipeIndex];
         if(pipe.x + PIPE_W < pl.x){
@@ -219,14 +214,10 @@ wss.on("connection", (ws)=>{
       const name = String(msg.name || "PLAYER").slice(0,14);
 
       r.players.set(clientId, {
-        id: clientId,
-        ws,
-        name,
-        ready:false,
-        alive:true,
+        id: clientId, ws, name,
+        ready:false, alive:true,
         x:110, y:H*0.48, vy:0,
-        score:0,
-        nextPipeIndex:0,
+        score:0, nextPipeIndex:0,
         birdSkin:"bird_classic"
       });
 
@@ -247,14 +238,10 @@ wss.on("connection", (ws)=>{
 
       const name = String(msg.name || "PLAYER").slice(0,14);
       r.players.set(clientId, {
-        id: clientId,
-        ws,
-        name,
-        ready:false,
-        alive:true,
+        id: clientId, ws, name,
+        ready:false, alive:true,
         x:110, y:H*0.48, vy:0,
-        score:0,
-        nextPipeIndex:0,
+        score:0, nextPipeIndex:0,
         birdSkin:"bird_classic"
       });
 
